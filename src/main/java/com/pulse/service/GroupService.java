@@ -4,11 +4,15 @@ import com.pulse.dto.CreateGroupRequest;
 import com.pulse.dto.GroupResponse;
 import com.pulse.entity.Group;
 import com.pulse.entity.GroupMember;
+import com.pulse.entity.User;
 import com.pulse.repository.GroupMemberRepository;
 import com.pulse.repository.GroupRepository;
+import com.pulse.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -18,33 +22,61 @@ public class GroupService {
 
     private final GroupRepository groupRepository;
     private final GroupMemberRepository groupMemberRepository;
+    private final UserRepository userRepository;
 
     @Transactional
     public GroupResponse createGroup(CreateGroupRequest request, Long currentUserId) {
-        // TODO: Implement create group
-        // 1. Create Group entity from request
-        // 2. Set createdBy to currentUserId
-        // 3. Save group
-        // 4. Add creator as ADMIN member in GroupMember table
-        // 5. Convert to GroupResponse and return
-        throw new UnsupportedOperationException("Create group not implemented yet");
+        User currentUser = userRepository.findById(currentUserId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        Group group = Group.builder()
+                .name(request.getName())
+                .description(request.getDescription())
+                .avatarUrl(request.getAvatarUrl())
+                .createdBy(currentUserId)
+                .build();
+
+        Group savedGroup = groupRepository.save(group);
+
+        GroupMember creatorMembership = GroupMember.builder()
+                .group(savedGroup)
+                .user(currentUser)
+                .role(GroupMember.MemberRole.ADMIN)
+                .build();
+        groupMemberRepository.save(creatorMembership);
+
+        return toResponse(savedGroup);
     }
 
     public List<GroupResponse> getUserGroups(Long userId) {
-        // TODO: Implement get user groups
-        // 1. Find all GroupMember records for userId
-        // 2. Get associated Group entities
-        // 3. Convert to List<GroupResponse> with member counts
-        // 4. Return list
-        throw new UnsupportedOperationException("Get user groups not implemented yet");
+        List<GroupMember> memberships = groupMemberRepository.findByUserId(userId);
+        return memberships.stream()
+                .map(GroupMember::getGroup)
+                .distinct()
+                .map(this::toResponse)
+                .toList();
     }
 
     public GroupResponse getGroupById(Long groupId, Long currentUserId) {
-        // TODO: Implement get group by ID
-        // 1. Find group by ID
-        // 2. Verify currentUserId is a member of the group
-        // 3. Convert to GroupResponse with member details
-        // 4. Return group details
-        throw new UnsupportedOperationException("Get group by ID not implemented yet");
+        Group group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Group not found"));
+
+        if (!groupMemberRepository.existsByGroupIdAndUserId(groupId, currentUserId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not a member of this group");
+        }
+
+        return toResponse(group);
+    }
+
+    private GroupResponse toResponse(Group group) {
+        return GroupResponse.builder()
+                .id(group.getId())
+                .name(group.getName())
+                .description(group.getDescription())
+                .avatarUrl(group.getAvatarUrl())
+                .createdBy(group.getCreatedBy())
+                .createdAt(group.getCreatedAt())
+                .memberCount(Math.toIntExact(groupMemberRepository.countByGroupId(group.getId())))
+                .build();
     }
 }

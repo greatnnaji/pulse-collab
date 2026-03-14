@@ -7,9 +7,13 @@ import com.pulse.dto.UserResponse;
 import com.pulse.entity.User;
 import com.pulse.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -21,30 +25,64 @@ public class AuthService {
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
-        // TODO: Implement user registration
-        // 1. Check if username or email already exists
-        // 2. Hash password using passwordEncoder
-        // 3. Create and save User entity
-        // 4. Generate JWT token using jwtService
-        // 5. Return AuthResponse with token and user details
-        throw new UnsupportedOperationException("Register endpoint not implemented yet");
+        if (userRepository.existsByUsername(request.getUsername())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Username already taken");
+        }
+
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already registered");
+        }
+
+        User user = User.builder()
+                .username(request.getUsername())
+                .email(request.getEmail())
+                .password(passwordEncoder.encode(request.getPassword()))
+                .displayName(request.getDisplayName())
+                .status(User.UserStatus.ONLINE)
+                .lastSeenAt(LocalDateTime.now())
+                .build();
+
+        User savedUser = userRepository.save(user);
+        String token = jwtService.generateToken(savedUser.getId(), savedUser.getUsername());
+
+        return new AuthResponse(
+                token,
+                savedUser.getId(),
+                savedUser.getUsername(),
+                savedUser.getEmail(),
+                savedUser.getDisplayName()
+        );
     }
 
+    @Transactional
     public AuthResponse login(LoginRequest request) {
-        // TODO: Implement user login
-        // 1. Find user by username or email
-        // 2. Verify password using passwordEncoder.matches()
-        // 3. Generate JWT token using jwtService
-        // 4. Update lastSeenAt timestamp
-        // 5. Return AuthResponse with token and user details
-        throw new UnsupportedOperationException("Login endpoint not implemented yet");
+        User user = userRepository.findByUsername(request.getUsernameOrEmail())
+                .or(() -> userRepository.findByEmail(request.getUsernameOrEmail()))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials"));
+
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
+        }
+
+        user.setLastSeenAt(LocalDateTime.now());
+        user.setStatus(User.UserStatus.ONLINE);
+        userRepository.save(user);
+
+        String token = jwtService.generateToken(user.getId(), user.getUsername());
+
+        return new AuthResponse(
+                token,
+                user.getId(),
+                user.getUsername(),
+                user.getEmail(),
+                user.getDisplayName()
+        );
     }
 
     public UserResponse getCurrentUser(Long userId) {
-        // TODO: Implement get current user
-        // 1. Find user by ID from JWT token
-        // 2. Convert User entity to UserResponse DTO
-        // 3. Return user details (without password)
-        throw new UnsupportedOperationException("Get current user not implemented yet");
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        return UserResponse.from(user);
     }
 }

@@ -23,5 +23,16 @@ public class UserResponse {
     private LocalDateTime lastSeenAt;
     private LocalDateTime createdAt;
 
-    // TODO: Add method to convert User entity to UserResponse DTO
+    public static UserResponse from(User user) {
+        return UserResponse.builder()
+                .id(user.getId())
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .displayName(user.getDisplayName())
+                .avatarUrl(user.getAvatarUrl())
+                .status(user.getStatus())
+                .lastSeenAt(user.getLastSeenAt())
+                .createdAt(user.getCreatedAt())
+                .build();
+    }
 }

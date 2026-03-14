@@ -7,8 +7,12 @@ import com.pulse.dto.UserResponse;
 import com.pulse.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -35,10 +39,30 @@ public class AuthController {
 
     @GetMapping("/me")
     public ResponseEntity<UserResponse> getCurrentUser() {
-        // TODO: Implement get current user endpoint
-        // 1. Extract userId from JWT token (via SecurityContextHolder or @AuthenticationPrincipal)
-        // 2. Call authService.getCurrentUser(userId)
-        // 3. Return user details
-        throw new UnsupportedOperationException("Get current user endpoint not implemented yet");
+        Long currentUserId = extractCurrentUserId();
+        UserResponse user = authService.getCurrentUser(currentUserId);
+        return ResponseEntity.ok(user);
+    }
+
+    private Long extractCurrentUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getPrincipal() == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
+        }
+
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof Long userId) {
+            return userId;
+        }
+
+        if (principal instanceof String str && !str.isBlank() && !"anonymousUser".equals(str)) {
+            try {
+                return Long.parseLong(str);
+            } catch (NumberFormatException ignored) {
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
+            }
+        }
+
+        throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
     }
 }
