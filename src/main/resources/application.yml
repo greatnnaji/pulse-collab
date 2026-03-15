@@ -3,9 +3,9 @@ spring:
     name: pulse-collab
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/pulsedb
-    username: pulseuser
-    password: pulsepass
+    url: jdbc:postgresql://localhost:${POSTGRES_PORT:5432}/${POSTGRES_DB:pulsedb}
+    username: ${POSTGRES_USER:pulseuser}
+    password: ${POSTGRES_PASSWORD:pulsepass}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -24,11 +24,14 @@ spring:
 
 server:
   port: 8080
+  error:
+    include-message: always
+    include-binding-errors: always
 
 # JWT Configuration
 jwt:
-  secret: ${JWT_SECRET:your-256-bit-secret-key-change-this-in-production-use-environment-variable}
-  expiration: 86400000  # 24 hours in milliseconds
+  secret: ${JWT_SECRET:dev-secret-key-change-in-production-123456}
+  expiration: ${JWT_EXPIRATION:86400000}  # 24 hours in milliseconds
 
 # TODO: Configure CORS for Angular frontend
 # TODO: Update JWT secret via environment variable in production

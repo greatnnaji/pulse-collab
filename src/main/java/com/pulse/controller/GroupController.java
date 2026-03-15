@@ -5,8 +5,12 @@ import com.pulse.dto.GroupResponse;
 import com.pulse.service.GroupService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -19,28 +23,42 @@ public class GroupController {
 
     @PostMapping
     public ResponseEntity<GroupResponse> createGroup(@Valid @RequestBody CreateGroupRequest request) {
-        // TODO: Implement create group endpoint
-        // 1. Extract currentUserId from JWT token (via SecurityContextHolder or @AuthenticationPrincipal)
-        // 2. Call groupService.createGroup(request, currentUserId)
-        // 3. Return created group with HTTP 201 status
-        throw new UnsupportedOperationException("Create group endpoint not implemented yet");
+        Long currentUserId = extractCurrentUserId();
+        GroupResponse created = groupService.createGroup(request, currentUserId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @GetMapping
     public ResponseEntity<List<GroupResponse>> getUserGroups() {
-        // TODO: Implement get user groups endpoint
-        // 1. Extract currentUserId from JWT token
-        // 2. Call groupService.getUserGroups(currentUserId)
-        // 3. Return list of groups user is member of
-        throw new UnsupportedOperationException("Get user groups endpoint not implemented yet");
+        Long currentUserId = extractCurrentUserId();
+        return ResponseEntity.ok(groupService.getUserGroups(currentUserId));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<GroupResponse> getGroupById(@PathVariable Long id) {
-        // TODO: Implement get group by ID endpoint
-        // 1. Extract currentUserId from JWT token
-        // 2. Call groupService.getGroupById(id, currentUserId)
-        // 3. Return group details if user is a member
-        throw new UnsupportedOperationException("Get group by ID endpoint not implemented yet");
+        Long currentUserId = extractCurrentUserId();
+        return ResponseEntity.ok(groupService.getGroupById(id, currentUserId));
+    }
+
+    private Long extractCurrentUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getPrincipal() == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
+        }
+
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof Long userId) {
+            return userId;
+        }
+
+        if (principal instanceof String str && !str.isBlank() && !"anonymousUser".equals(str)) {
+            try {
+                return Long.parseLong(str);
+            } catch (NumberFormatException ignored) {
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
+            }
+        }
+
+        throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
     }
 }
