@@ -21,6 +21,7 @@ public class AuthResponse {
 
     public AuthResponse(String token, Long userId, String username, String email, String displayName) {
         this.token = token;
+        this.type = "Bearer";
         this.userId = userId;
         this.username = username;
         this.email = email;

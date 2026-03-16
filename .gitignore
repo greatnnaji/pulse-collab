@@ -40,4 +40,4 @@ Thumbs.db
 .env.local
 
 # notes
-BACKEND_README.md
+docs/
