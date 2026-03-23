@@ -33,8 +33,19 @@ button {
   background: linear-gradient(135deg, var(--accent), var(--accent-2));
 }
 
+button:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+
 .error {
   margin: 0.1rem 0 0;
   font-size: 0.85rem;
   color: var(--error);
+}
+
+.success {
+  margin: 0.1rem 0 0;
+  font-size: 0.85rem;
+  color: var(--accent);
 }

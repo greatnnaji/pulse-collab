@@ -11,5 +11,15 @@
     <p class="error">Password must be at least 8 characters.</p>
   }
 
-  <button type="submit">Sign in</button>
+  @if (submitError()) {
+    <p class="error">{{ submitError() }}</p>
+  }
+
+  @if (submitSuccess()) {
+    <p class="success">{{ submitSuccess() }}</p>
+  }
+
+  <button type="submit" [disabled]="isSubmitting()">
+    {{ isSubmitting() ? 'Signing in...' : 'Sign in' }}
+  </button>
 </form>

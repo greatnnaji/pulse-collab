@@ -31,5 +31,15 @@
     <p class="error">Passwords do not match.</p>
   }
 
-  <button type="submit">Create account</button>
+  @if (submitError()) {
+    <p class="error">{{ submitError() }}</p>
+  }
+
+  @if (submitSuccess()) {
+    <p class="success">{{ submitSuccess() }}</p>
+  }
+
+  <button type="submit" [disabled]="isSubmitting()">
+    {{ isSubmitting() ? 'Creating account...' : 'Create account' }}
+  </button>
 </form>
