@@ -1,0 +1,15 @@
+<form class="auth-form" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+  <label for="usernameOrEmail">Username or email</label>
+  <input id="usernameOrEmail" type="text" formControlName="usernameOrEmail" placeholder="you@team.com" />
+  @if (hasError('usernameOrEmail')) {
+    <p class="error">Enter a username or email (at least 3 characters).</p>
+  }
+
+  <label for="password">Password</label>
+  <input id="password" type="password" formControlName="password" placeholder="At least 8 characters" />
+  @if (hasError('password')) {
+    <p class="error">Password must be at least 8 characters.</p>
+  }
+
+  <button type="submit">Sign in</button>
+</form>

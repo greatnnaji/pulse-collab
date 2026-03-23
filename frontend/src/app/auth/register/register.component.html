@@ -1,0 +1,35 @@
+<form class="auth-form" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+  <label for="displayName">Display name</label>
+  <input id="displayName" type="text" formControlName="displayName" placeholder="Alex Morgan" />
+  @if (hasError('displayName')) {
+    <p class="error">Display name must be at least 2 characters.</p>
+  }
+
+  <label for="username">Username</label>
+  <input id="username" type="text" formControlName="username" placeholder="alex.m" />
+  @if (hasError('username')) {
+    <p class="error">Username must be at least 3 characters.</p>
+  }
+
+  <label for="email">Email</label>
+  <input id="email" type="email" formControlName="email" placeholder="alex@pulse.app" />
+  @if (hasError('email')) {
+    <p class="error">Enter a valid email address.</p>
+  }
+
+  <label for="password">Password</label>
+  <input id="password" type="password" formControlName="password" placeholder="One uppercase, one lowercase, one number" />
+  @if (hasError('password')) {
+    <p class="error">Password must be 8+ chars and include upper, lower, and number.</p>
+  }
+
+  <label for="confirmPassword">Confirm password</label>
+  <input id="confirmPassword" type="password" formControlName="confirmPassword" placeholder="Repeat your password" />
+  @if (hasError('confirmPassword')) {
+    <p class="error">Please confirm your password.</p>
+  } @else if (passwordMismatch) {
+    <p class="error">Passwords do not match.</p>
+  }
+
+  <button type="submit">Create account</button>
+</form>
