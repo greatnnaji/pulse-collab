@@ -1,0 +1,23 @@
+<section class="auth-shell">
+  <div class="aurora"></div>
+  <main class="auth-card">
+    <header class="auth-header">
+      <div>
+        <p class="kicker">Pulse Collab</p>
+        <h1>Welcome back</h1>
+        <p class="subtitle">Sign in or create your account to continue.</p>
+      </div>
+
+      <button type="button" class="theme-toggle" (click)="toggleTheme()">
+        {{ darkMode() ? 'Switch to light' : 'Switch to dark' }}
+      </button>
+    </header>
+
+    <nav class="auth-nav" aria-label="Auth navigation">
+      <a routerLink="/auth/login" routerLinkActive="active">Login</a>
+      <a routerLink="/auth/register" routerLinkActive="active">Register</a>
+    </nav>
+
+    <router-outlet></router-outlet>
+  </main>
+</section>
