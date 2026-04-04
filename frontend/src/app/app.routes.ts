@@ -1,5 +1,7 @@
 import { Routes } from '@angular/router';
 
+import { AppShellComponent } from './app-shell/app-shell.component';
+import { authGuard } from './auth/auth.guard';
 import { AuthLayoutComponent } from './auth/layout/auth-layout.component';
 import { LoginComponent } from './auth/login/login.component';
 import { RegisterComponent } from './auth/register/register.component';
@@ -8,7 +10,12 @@ export const appRoutes: Routes = [
   {
     path: '',
     pathMatch: 'full',
-    redirectTo: 'auth/login'
+    redirectTo: 'app'
+  },
+  {
+    path: 'app',
+    component: AppShellComponent,
+    canActivate: [authGuard]
   },
   {
     path: 'auth',
@@ -31,6 +38,6 @@ export const appRoutes: Routes = [
   },
   {
     path: '**',
-    redirectTo: 'auth/login'
+    redirectTo: 'app'
   }
 ];

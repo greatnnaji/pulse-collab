@@ -1,0 +1,141 @@
+<section class="app-shell">
+  <aside class="sidebar">
+    <header class="brand-block">
+      <p class="brand-kicker">Pulse Collab</p>
+      <h1>Pulse</h1>
+      <p class="brand-subtitle">Your teams, in one place</p>
+    </header>
+
+    <button type="button" class="primary-action" (click)="openCreateGroup()">+ Create Group</button>
+
+    @if (createGroupOpen()) {
+      <form class="create-group-form" [formGroup]="createGroupForm" (ngSubmit)="submitCreateGroup()" novalidate>
+        <label for="groupName">Group name</label>
+        <input id="groupName" type="text" formControlName="name" placeholder="Product Team" />
+        @if (hasCreateGroupError('name')) {
+          <p class="error">Group name is required (up to 100 characters).</p>
+        }
+
+        <label for="groupDescription">Description (optional)</label>
+        <textarea
+          id="groupDescription"
+          rows="3"
+          formControlName="description"
+          placeholder="What is this group for?"
+        ></textarea>
+        @if (hasCreateGroupError('description')) {
+          <p class="error">Description can be up to 500 characters.</p>
+        }
+
+        @if (createGroupError()) {
+          <p class="error">{{ createGroupError() }}</p>
+        }
+
+        <div class="form-actions">
+          <button type="submit" class="submit" [disabled]="isCreatingGroup()">
+            {{ isCreatingGroup() ? 'Creating...' : 'Create Group' }}
+          </button>
+          <button type="button" class="secondary" (click)="cancelCreateGroup()">Cancel</button>
+        </div>
+      </form>
+    }
+
+    <section class="group-list-wrap" aria-label="Group list">
+      <p class="section-title">Your Groups</p>
+
+      @if (groups().length === 0 && !isLoading()) {
+        <p class="section-muted">No groups yet.</p>
+      }
+
+      <ul class="group-list">
+        @for (group of groups(); track group.id) {
+          <li>
+            <button
+              type="button"
+              class="group-item"
+              [class.active]="selectedGroupId() === group.id"
+              (click)="selectGroup(group.id)"
+            >
+              <span class="group-name">{{ group.name }}</span>
+              @if (group.memberCount !== null && group.memberCount !== undefined) {
+                <span class="group-meta">{{ group.memberCount }} members</span>
+              }
+            </button>
+          </li>
+        }
+      </ul>
+    </section>
+
+    <footer class="sidebar-footer">
+      <div class="user-card">
+        <p class="user-name">{{ currentUser()?.displayName || currentUser()?.username || 'Pulse User' }}</p>
+        <p class="user-email">{{ currentUser()?.email || '' }}</p>
+      </div>
+      <button type="button" class="logout" (click)="logout()">Logout</button>
+    </footer>
+  </aside>
+
+  <main class="main-panel">
+    <header class="top-bar">
+      <div>
+        <p class="eyebrow">Dashboard</p>
+        <h2>{{ selectedGroup()?.name || 'Pulse Workspace' }}</h2>
+      </div>
+
+      <div class="top-actions">
+        <button type="button" class="theme-toggle" (click)="toggleTheme()">
+          {{ darkMode() ? 'Light mode' : 'Dark mode' }}
+        </button>
+        <div class="top-user">{{ currentUser()?.displayName || currentUser()?.username || 'User' }}</div>
+      </div>
+    </header>
+
+    <section class="content-area">
+      @if (isLoading()) {
+        <div class="state-card loading-state">
+          <div class="spinner" aria-hidden="true"></div>
+          <p>Loading your workspace...</p>
+        </div>
+      } @else if (loadingError()) {
+        <div class="state-card">
+          <h3>We hit a loading issue</h3>
+          <p>{{ loadingError() }}</p>
+          <button type="button" class="primary-inline" (click)="loadAppData()">Retry</button>
+        </div>
+      } @else if (groups().length === 0) {
+        <div class="state-card">
+          <h3>Welcome to Pulse</h3>
+          <p>Welcome to Pulse. Create your first group to get started.</p>
+          <button type="button" class="primary-inline" (click)="openCreateGroup()">Create Group</button>
+        </div>
+      } @else if (!selectedGroup()) {
+        <div class="state-card">
+          <h3>Select a group</h3>
+          <p>Choose a group from the sidebar to view its details.</p>
+        </div>
+      } @else {
+        <article class="group-detail">
+          <header>
+            <h3>{{ selectedGroup()?.name }}</h3>
+            <p>
+              @if (selectedGroup()?.memberCount !== null && selectedGroup()?.memberCount !== undefined) {
+                {{ selectedGroup()?.memberCount }} member(s)
+              } @else {
+                Member count unavailable
+              }
+            </p>
+          </header>
+
+          @if (selectedGroup()?.description) {
+            <p class="group-description">{{ selectedGroup()?.description }}</p>
+          }
+
+          <div class="placeholder-card">
+            <p class="placeholder-title">No messages yet</p>
+            <p>Chat coming next.</p>
+          </div>
+        </article>
+      }
+    </section>
+  </main>
+</section>

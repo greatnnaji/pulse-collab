@@ -42,7 +42,7 @@ export class LoginComponent {
     this.authService.login(this.form.getRawValue()).subscribe({
       next: () => {
         this.submitSuccess.set('Login successful.');
-        this.router.navigateByUrl('/');
+        this.router.navigateByUrl('/app');
       },
       error: () => {
         this.submitError.set('Login failed. Please check your credentials and try again.');
