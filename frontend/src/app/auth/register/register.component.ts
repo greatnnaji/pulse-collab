@@ -76,7 +76,7 @@ export class RegisterComponent {
     this.authService.register(payload).subscribe({
       next: () => {
         this.submitSuccess.set('Registration successful.');
-        this.router.navigateByUrl('/');
+        this.router.navigateByUrl('/app');
       },
       error: () => {
         this.submitError.set('Registration failed. Please review your details and try again.');

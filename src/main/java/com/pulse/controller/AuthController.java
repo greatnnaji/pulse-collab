@@ -23,16 +23,12 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
-        // TODO: Implement register endpoint
-        // Call authService.register() and return response
         AuthResponse response = authService.register(request);
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
-        // TODO: Implement login endpoint
-        // Call authService.login() and return response
         AuthResponse response = authService.login(request);
         return ResponseEntity.ok(response);
     }
