@@ -48,13 +48,15 @@ export class AppShellComponent implements OnInit {
 
   updateMemberCount = (newCount: number): void => {
     const currentGroup = this.selectedGroup();
-    if (currentGroup) {
-      this.groups.update((groups) =>
-        groups.map((group) =>
-          group.id === currentGroup.id ? { ...group, memberCount: newCount } : group
-        )
-      );
+    if (!currentGroup || currentGroup.memberCount === newCount) {
+      return;
     }
+
+    this.groups.update((groups) =>
+      groups.map((group) =>
+        group.id === currentGroup.id ? { ...group, memberCount: newCount } : group
+      )
+    );
   };
 
   constructor(

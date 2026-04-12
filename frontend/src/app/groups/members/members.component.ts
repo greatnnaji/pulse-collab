@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges, OnInit, SimpleChanges, signal } from '@angular/core';
+import { Component, Input, OnChanges, SimpleChanges, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize } from 'rxjs';
@@ -13,7 +13,7 @@ import { AddMemberRequest, GroupResponse, MemberResponse } from '../group.models
   templateUrl: './members.component.html',
   styleUrl: './members.component.scss'
 })
-export class MembersComponent implements OnInit, OnChanges {
+export class MembersComponent implements OnChanges {
   @Input() selectedGroup: GroupResponse | null = null;
   @Input() currentUserId: number | null = null;
   @Input() createdMemberCount: ((count: number) => void) | null = null;
@@ -39,15 +39,14 @@ export class MembersComponent implements OnInit, OnChanges {
     private readonly formBuilder: FormBuilder
   ) {}
 
-  ngOnInit(): void {
-    if (this.selectedGroup) {
-      this.loadMembers();
-    }
-  }
-
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['selectedGroup']) {
+      const previousGroup = changes['selectedGroup'].previousValue as GroupResponse | null;
       const currentGroup = changes['selectedGroup'].currentValue as GroupResponse | null;
+
+      if (previousGroup?.id === currentGroup?.id) {
+        return;
+      }
 
       if (!currentGroup) {
         this.members.set([]);
@@ -80,7 +79,7 @@ export class MembersComponent implements OnInit, OnChanges {
           }
 
           this.members.set(members);
-          if (this.createdMemberCount) {
+          if (this.createdMemberCount && this.selectedGroup.memberCount !== members.length) {
             this.createdMemberCount(members.length);
           }
         },
@@ -91,7 +90,7 @@ export class MembersComponent implements OnInit, OnChanges {
 
           if (error?.status === 404) {
             this.members.set([]);
-            if (this.createdMemberCount) {
+            if (this.createdMemberCount && this.selectedGroup.memberCount !== 0) {
               this.createdMemberCount(0);
             }
             return;
