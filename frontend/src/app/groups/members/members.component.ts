@@ -63,7 +63,15 @@ export class MembersComponent implements OnInit {
             this.createdMemberCount(members.length);
           }
         },
-        error: () => {
+        error: (error) => {
+          if (error?.status === 404) {
+            this.members.set([]);
+            if (this.createdMemberCount) {
+              this.createdMemberCount(0);
+            }
+            return;
+          }
+
           this.membersError.set('Unable to load members. Please try again.');
         }
       });

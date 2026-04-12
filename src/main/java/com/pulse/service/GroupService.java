@@ -70,6 +70,7 @@ public class GroupService {
         return toResponse(group);
     }
 
+    @Transactional(readOnly = true)
     public List<MemberResponse> getGroupMembers(Long groupId, Long currentUserId) {
         // Verify group exists
         if (!groupRepository.existsById(groupId)) {
@@ -81,7 +82,7 @@ public class GroupService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not a member of this group");
         }
 
-        List<GroupMember> members = groupMemberRepository.findByGroupId(groupId);
+        List<GroupMember> members = groupMemberRepository.findByGroupIdWithUser(groupId);
         return members.stream()
                 .map(MemberResponse::from)
                 .toList();
