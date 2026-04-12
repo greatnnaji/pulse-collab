@@ -13,3 +13,20 @@ export interface CreateGroupRequest {
   description?: string;
   avatarUrl?: string;
 }
+
+export type MemberRole = 'ADMIN' | 'MEMBER';
+
+export interface MemberResponse {
+  id: number;
+  userId: number;
+  username: string;
+  email: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  role: MemberRole;
+  joinedAt: string;
+}
+
+export interface AddMemberRequest {
+  email: string;
+}
