@@ -1,6 +1,6 @@
 <section class="members-section">
   <header class="members-header">
-    <h4>Members</h4>
+    <h4>Members ({{ members().length }})</h4>
     @if (isGroupCreator()) {
       <button type="button" class="add-member-btn" (click)="openAddMemberForm()">+ Add Member</button>
     }
