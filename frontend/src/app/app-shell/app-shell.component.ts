@@ -6,11 +6,12 @@ import { finalize, forkJoin, map, switchMap } from 'rxjs';
 import { AuthService } from '../auth/auth.service';
 import { GroupResponse } from '../groups/group.models';
 import { GroupService } from '../groups/group.service';
+import { MembersComponent } from '../groups/members/members.component';
 
 @Component({
   selector: 'app-app-shell',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, MembersComponent],
   templateUrl: './app-shell.component.html',
   styleUrl: './app-shell.component.scss'
 })
@@ -44,6 +45,17 @@ export class AppShellComponent implements OnInit {
 
     return this.groups().find((group) => group.id === selectedId) ?? null;
   });
+
+  updateMemberCount = (newCount: number): void => {
+    const currentGroup = this.selectedGroup();
+    if (currentGroup) {
+      this.groups.update((groups) =>
+        groups.map((group) =>
+          group.id === currentGroup.id ? { ...group, memberCount: newCount } : group
+        )
+      );
+    }
+  };
 
   constructor(
     private readonly authService: AuthService,

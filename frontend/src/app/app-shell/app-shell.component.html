@@ -130,6 +130,12 @@
             <p class="group-description">{{ selectedGroup()?.description }}</p>
           }
 
+          <app-members
+            [selectedGroup]="selectedGroup()"
+            [currentUserId]="currentUser()?.id ?? null"
+            [createdMemberCount]="updateMemberCount"
+          ></app-members>
+
           <div class="placeholder-card">
             <p class="placeholder-title">No messages yet</p>
             <p>Chat coming next.</p>

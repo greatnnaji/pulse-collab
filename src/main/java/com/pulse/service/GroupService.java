@@ -1,7 +1,9 @@
 package com.pulse.service;
 
+import com.pulse.dto.AddMemberRequest;
 import com.pulse.dto.CreateGroupRequest;
 import com.pulse.dto.GroupResponse;
+import com.pulse.dto.MemberResponse;
 import com.pulse.entity.Group;
 import com.pulse.entity.GroupMember;
 import com.pulse.entity.User;
@@ -66,6 +68,54 @@ public class GroupService {
         }
 
         return toResponse(group);
+    }
+
+    public List<MemberResponse> getGroupMembers(Long groupId, Long currentUserId) {
+        // Verify group exists
+        if (!groupRepository.existsById(groupId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Group not found");
+        }
+
+        // Verify current user is a member of the group
+        if (!groupMemberRepository.existsByGroupIdAndUserId(groupId, currentUserId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not a member of this group");
+        }
+
+        List<GroupMember> members = groupMemberRepository.findByGroupId(groupId);
+        return members.stream()
+                .map(MemberResponse::from)
+                .toList();
+    }
+
+    @Transactional
+    public MemberResponse addMemberToGroup(Long groupId, AddMemberRequest request, Long currentUserId) {
+        // Verify group exists
+        Group group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Group not found"));
+
+        // Verify current user is the group creator (admin)
+        if (!group.getCreatedBy().equals(currentUserId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only the group creator can add members");
+        }
+
+        // Find user by email
+        User userToAdd = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User with email not found"));
+
+        // Check if user is already a member
+        if (groupMemberRepository.existsByGroupIdAndUserId(groupId, userToAdd.getId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "User is already a member of this group");
+        }
+
+        // Add user to group as MEMBER
+        GroupMember newMember = GroupMember.builder()
+                .group(group)
+                .user(userToAdd)
+                .role(GroupMember.MemberRole.MEMBER)
+                .build();
+
+        GroupMember savedMember = groupMemberRepository.save(newMember);
+        return MemberResponse.from(savedMember);
     }
 
     private GroupResponse toResponse(Group group) {

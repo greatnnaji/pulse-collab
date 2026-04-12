@@ -1,0 +1,69 @@
+<section class="members-section">
+  <header class="members-header">
+    <h4>Members</h4>
+    @if (isGroupCreator()) {
+      <button type="button" class="add-member-btn" (click)="openAddMemberForm()">+ Add Member</button>
+    }
+  </header>
+
+  @if (isLoadingMembers()) {
+    <div class="members-loading">
+      <div class="spinner" aria-hidden="true"></div>
+      <p>Loading members...</p>
+    </div>
+  } @else if (membersError()) {
+    <div class="members-error">
+      <p>{{ membersError() }}</p>
+      <button type="button" class="retry-btn" (click)="loadMembers()">Retry</button>
+    </div>
+  } @else if (members().length === 0) {
+    <p class="members-empty">No members yet.</p>
+  } @else {
+    <ul class="members-list">
+      @for (member of members(); track member.id) {
+        <li class="member-item">
+          <div class="member-info">
+            <p class="member-name">{{ member.displayName || member.username }}</p>
+            <p class="member-email">{{ member.email }}</p>
+          </div>
+          <span class="member-role" [class.admin]="member.role === 'ADMIN'">{{ member.role }}</span>
+        </li>
+      }
+    </ul>
+  }
+
+  @if (showAddMemberForm()) {
+    <div class="add-member-form-wrap">
+      <form class="add-member-form" [formGroup]="addMemberForm" (ngSubmit)="submitAddMember()" novalidate>
+        <label for="memberEmail">Add member by email</label>
+        <input
+          id="memberEmail"
+          type="email"
+          formControlName="email"
+          placeholder="user@example.com"
+          [disabled]="isAddingMember()"
+        />
+        @if (hasAddMemberError('email')) {
+          <p class="error">Please enter a valid email address.</p>
+        }
+
+        @if (addMemberError()) {
+          <p class="error">{{ addMemberError() }}</p>
+        }
+
+        @if (addMemberSuccess()) {
+          <p class="success">Member added successfully!</p>
+        }
+
+        <div class="form-actions">
+          <button type="submit" class="submit" [disabled]="isAddingMember() || addMemberForm.invalid">
+            {{ isAddingMember() ? 'Adding...' : 'Add Member' }}
+          </button>
+          <button type="button" class="secondary" (click)="cancelAddMember()" [disabled]="isAddingMember()">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
+  }
+</section>

@@ -1,7 +1,9 @@
 package com.pulse.controller;
 
+import com.pulse.dto.AddMemberRequest;
 import com.pulse.dto.CreateGroupRequest;
 import com.pulse.dto.GroupResponse;
+import com.pulse.dto.MemberResponse;
 import com.pulse.service.GroupService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +40,20 @@ public class GroupController {
     public ResponseEntity<GroupResponse> getGroupById(@PathVariable Long id) {
         Long currentUserId = extractCurrentUserId();
         return ResponseEntity.ok(groupService.getGroupById(id, currentUserId));
+    }
+
+    @GetMapping("/{groupId}/members")
+    public ResponseEntity<List<MemberResponse>> getGroupMembers(@PathVariable Long groupId) {
+        Long currentUserId = extractCurrentUserId();
+        return ResponseEntity.ok(groupService.getGroupMembers(groupId, currentUserId));
+    }
+
+    @PostMapping("/{groupId}/members")
+    public ResponseEntity<MemberResponse> addMemberToGroup(@PathVariable Long groupId,
+                                                           @Valid @RequestBody AddMemberRequest request) {
+        Long currentUserId = extractCurrentUserId();
+        MemberResponse added = groupService.addMemberToGroup(groupId, request, currentUserId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(added);
     }
 
     private Long extractCurrentUserId() {
