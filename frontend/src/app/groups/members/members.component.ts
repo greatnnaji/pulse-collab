@@ -1,4 +1,4 @@
-import { Component, Input, OnInit, signal } from '@angular/core';
+import { Component, Input, OnChanges, OnInit, SimpleChanges, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize } from 'rxjs';
@@ -13,7 +13,7 @@ import { AddMemberRequest, GroupResponse, MemberResponse } from '../group.models
   templateUrl: './members.component.html',
   styleUrl: './members.component.scss'
 })
-export class MembersComponent implements OnInit {
+export class MembersComponent implements OnInit, OnChanges {
   @Input() selectedGroup: GroupResponse | null = null;
   @Input() currentUserId: number | null = null;
   @Input() createdMemberCount: ((count: number) => void) | null = null;
@@ -45,25 +45,50 @@ export class MembersComponent implements OnInit {
     }
   }
 
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['selectedGroup']) {
+      const currentGroup = changes['selectedGroup'].currentValue as GroupResponse | null;
+
+      if (!currentGroup) {
+        this.members.set([]);
+        this.membersError.set(null);
+        this.isLoadingMembers.set(false);
+        return;
+      }
+
+      this.loadMembers();
+    }
+  }
+
   loadMembers(): void {
     if (!this.selectedGroup) {
       return;
     }
 
+    const loadingGroupId = this.selectedGroup.id;
+
     this.isLoadingMembers.set(true);
     this.membersError.set(null);
 
     this.groupService
-      .getGroupMembers(this.selectedGroup.id)
+      .getGroupMembers(loadingGroupId)
       .pipe(finalize(() => this.isLoadingMembers.set(false)))
       .subscribe({
         next: (members) => {
+          if (this.selectedGroup?.id !== loadingGroupId) {
+            return;
+          }
+
           this.members.set(members);
           if (this.createdMemberCount) {
             this.createdMemberCount(members.length);
           }
         },
         error: (error) => {
+          if (this.selectedGroup?.id !== loadingGroupId) {
+            return;
+          }
+
           if (error?.status === 404) {
             this.members.set([]);
             if (this.createdMemberCount) {
