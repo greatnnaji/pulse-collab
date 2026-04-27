@@ -200,6 +200,78 @@ class GroupServiceTest {
     }
 
     @Test
+    void removeMemberFromGroup_blocksMemberWithoutPrivileges() {
+        Long groupId = 10L;
+        Long actingUserId = 2L;
+        Long targetUserId = 3L;
+
+        Group group = Group.builder().id(groupId).build();
+        GroupMember actingMembership = GroupMember.builder().role(GroupMember.MemberRole.MEMBER).build();
+
+        when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
+        when(groupMemberRepository.findByGroupIdAndUserId(groupId, actingUserId)).thenReturn(Optional.of(actingMembership));
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> groupService.removeMemberFromGroup(groupId, targetUserId, actingUserId));
+
+        assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
+        assertEquals("Only group owner or admin can remove members", exception.getReason());
+        verify(groupMemberRepository, never()).delete(any(GroupMember.class));
+    }
+
+    @Test
+    void removeMemberFromGroup_blocksRemovingSelf() {
+        Long groupId = 11L;
+        Long actingUserId = 4L;
+
+        Group group = Group.builder().id(groupId).build();
+        GroupMember actingMembership = GroupMember.builder().role(GroupMember.MemberRole.ADMIN).build();
+
+        when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
+        when(groupMemberRepository.findByGroupIdAndUserId(groupId, actingUserId)).thenReturn(Optional.of(actingMembership));
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> groupService.removeMemberFromGroup(groupId, actingUserId, actingUserId));
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+        assertEquals("Use leave group operation to remove your own membership", exception.getReason());
+        verify(groupMemberRepository, never()).delete(any(GroupMember.class));
+    }
+
+    @Test
+    void removeMemberFromGroup_returnsNotFoundWhenGroupMissing() {
+        Long groupId = 12L;
+
+        when(groupRepository.findById(groupId)).thenReturn(Optional.empty());
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> groupService.removeMemberFromGroup(groupId, 9L, 1L));
+
+        assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
+        assertEquals("Group not found", exception.getReason());
+        verify(groupMemberRepository, never()).delete(any(GroupMember.class));
+    }
+
+    @Test
+    void removeMemberFromGroup_deletesTargetMemberWhenAuthorized() {
+        Long groupId = 13L;
+        Long actingUserId = 2L;
+        Long targetUserId = 3L;
+
+        Group group = Group.builder().id(groupId).build();
+        GroupMember actingMembership = GroupMember.builder().role(GroupMember.MemberRole.ADMIN).build();
+        GroupMember targetMembership = GroupMember.builder().role(GroupMember.MemberRole.MEMBER).build();
+
+        when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
+        when(groupMemberRepository.findByGroupIdAndUserId(groupId, actingUserId)).thenReturn(Optional.of(actingMembership));
+        when(groupMemberRepository.findByGroupIdAndUserId(groupId, targetUserId)).thenReturn(Optional.of(targetMembership));
+
+        groupService.removeMemberFromGroup(groupId, targetUserId, actingUserId);
+
+        verify(groupMemberRepository, times(1)).delete(targetMembership);
+    }
+
+    @Test
     void leaveGroup_blocksOwner() {
         Long groupId = 8L;
         Long ownerUserId = 1L;
@@ -232,5 +304,37 @@ class GroupServiceTest {
         groupService.leaveGroup(groupId, memberUserId);
 
         verify(groupMemberRepository, times(1)).delete(member);
+    }
+
+    @Test
+    void leaveGroup_returnsNotFoundWhenGroupMissing() {
+        Long groupId = 14L;
+
+        when(groupRepository.findById(groupId)).thenReturn(Optional.empty());
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> groupService.leaveGroup(groupId, 2L));
+
+        assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
+        assertEquals("Group not found", exception.getReason());
+        verify(groupMemberRepository, never()).delete(any(GroupMember.class));
+    }
+
+    @Test
+    void leaveGroup_blocksNonMember() {
+        Long groupId = 15L;
+        Long currentUserId = 20L;
+
+        Group group = Group.builder().id(groupId).build();
+
+        when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
+        when(groupMemberRepository.findByGroupIdAndUserId(groupId, currentUserId)).thenReturn(Optional.empty());
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> groupService.leaveGroup(groupId, currentUserId));
+
+        assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
+        assertEquals("Not a member of this group", exception.getReason());
+        verify(groupMemberRepository, never()).delete(any(GroupMember.class));
     }
 }
