@@ -1,7 +1,7 @@
 import { Component, OnInit, computed, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
-import { finalize, forkJoin, map, switchMap } from 'rxjs';
+import { finalize, forkJoin, map, switchMap, take } from 'rxjs';
 
 import { AuthService } from '../auth/auth.service';
 import { GroupResponse } from '../groups/group.models';
@@ -24,6 +24,7 @@ export class AppShellComponent implements OnInit {
   readonly groups = signal<GroupResponse[]>([]);
   readonly selectedGroupId = signal<number | null>(null);
   readonly groupAccessError = signal<string | null>(null);
+  readonly groupActionNotice = signal<string | null>(null);
 
   readonly darkMode = signal(false);
 
@@ -77,6 +78,7 @@ export class AppShellComponent implements OnInit {
     this.isLoading.set(true);
     this.loadingError.set(null);
     this.groupAccessError.set(null);
+    this.groupActionNotice.set(null);
 
     forkJoin({
       user: this.authService.getCurrentUser(),
@@ -97,6 +99,7 @@ export class AppShellComponent implements OnInit {
   selectGroup(groupId: number): void {
     this.selectedGroupId.set(groupId);
     this.groupAccessError.set(null);
+    this.groupActionNotice.set(null);
   }
 
   toggleTheme(): void {
@@ -169,6 +172,24 @@ export class AppShellComponent implements OnInit {
   onGroupAccessDenied(message: string): void {
     this.selectedGroupId.set(null);
     this.groupAccessError.set(message);
+  }
+
+  onGroupLeft(message: string): void {
+    this.selectedGroupId.set(null);
+    this.groupAccessError.set(null);
+    this.groupActionNotice.set(message);
+
+    this.groupService
+      .getGroups()
+      .pipe(take(1))
+      .subscribe({
+        next: (groups) => {
+          this.groups.set(groups);
+        },
+        error: () => {
+          this.groupActionNotice.set('You left the group, but we could not refresh your group list yet.');
+        }
+      });
   }
 
   private initializeTheme(): void {

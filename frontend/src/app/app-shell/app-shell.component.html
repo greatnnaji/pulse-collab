@@ -117,6 +117,11 @@
           <h3>Private group access blocked</h3>
           <p>{{ groupAccessError() }}</p>
         </div>
+      } @else if (groupActionNotice()) {
+        <div class="state-card access-state">
+          <h3>Group updated</h3>
+          <p>{{ groupActionNotice() }}</p>
+        </div>
       } @else if (groups().length === 0) {
         <div class="state-card">
           <h3>Welcome to Pulse</h3>
@@ -164,6 +169,7 @@
             [currentUserId]="currentUser()?.id ?? null"
             [createdMemberCount]="updateMemberCount"
             (accessDenied)="onGroupAccessDenied($event)"
+            (groupLeft)="onGroupLeft($event)"
           ></app-members>
 
           <div class="placeholder-card">

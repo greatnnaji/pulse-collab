@@ -18,6 +18,7 @@ export class MembersComponent implements OnChanges {
   @Input() currentUserId: number | null = null;
   @Input() createdMemberCount: ((count: number) => void) | null = null;
   @Output() accessDenied = new EventEmitter<string>();
+  @Output() groupLeft = new EventEmitter<string>();
 
   readonly members = signal<MemberResponse[]>([]);
   readonly isLoadingMembers = signal(true);
@@ -28,12 +29,26 @@ export class MembersComponent implements OnChanges {
   readonly addMemberError = signal<string | null>(null);
   readonly addMemberSuccess = signal(false);
 
+  readonly memberActionError = signal<string | null>(null);
+  readonly memberActionSuccess = signal<string | null>(null);
+  readonly isRemovingMemberId = signal<number | null>(null);
+  readonly isLeavingGroup = signal(false);
+
   readonly addMemberForm = this.formBuilder.nonNullable.group({
     email: ['', [Validators.required, Validators.email]]
   });
 
-  readonly isGroupCreator = () =>
-    this.selectedGroup && this.currentUserId ? this.selectedGroup.createdBy === this.currentUserId : false;
+  readonly canManageMembers = () => {
+    const currentUserRole = this.getCurrentUserRole();
+    return currentUserRole === 'OWNER' || currentUserRole === 'ADMIN';
+  };
+
+  readonly canCurrentUserLeaveGroup = () => {
+    const currentUserRole = this.getCurrentUserRole();
+    return currentUserRole === 'ADMIN' || currentUserRole === 'MEMBER';
+  };
+
+  readonly isCurrentUserOwner = () => this.getCurrentUserRole() === 'OWNER';
 
   constructor(
     private readonly groupService: GroupService,
@@ -52,6 +67,8 @@ export class MembersComponent implements OnChanges {
       if (!currentGroup) {
         this.members.set([]);
         this.membersError.set(null);
+        this.memberActionError.set(null);
+        this.memberActionSuccess.set(null);
         this.isLoadingMembers.set(false);
         return;
       }
@@ -69,6 +86,8 @@ export class MembersComponent implements OnChanges {
 
     this.isLoadingMembers.set(true);
     this.membersError.set(null);
+    this.memberActionError.set(null);
+    this.memberActionSuccess.set(null);
 
     this.groupService
       .getGroupMembers(loadingGroupId)
@@ -105,6 +124,102 @@ export class MembersComponent implements OnChanges {
           }
 
           this.membersError.set('Unable to load members. Please try again.');
+        }
+      });
+  }
+
+  canRemoveMember(member: MemberResponse): boolean {
+    if (!this.currentUserId || member.userId === this.currentUserId) {
+      return false;
+    }
+
+    if (!this.canManageMembers()) {
+      return false;
+    }
+
+    return member.role !== 'OWNER';
+  }
+
+  canCurrentUserLeave(member: MemberResponse): boolean {
+    if (!this.currentUserId || member.userId !== this.currentUserId) {
+      return false;
+    }
+
+    return this.canCurrentUserLeaveGroup();
+  }
+
+  removeMember(member: MemberResponse): void {
+    if (!this.selectedGroup || !this.canRemoveMember(member)) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Remove ${member.displayName || member.username} from ${this.selectedGroup.name}?`
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    this.memberActionError.set(null);
+    this.memberActionSuccess.set(null);
+    this.isRemovingMemberId.set(member.id);
+
+    this.groupService
+      .removeMemberFromGroup(this.selectedGroup.id, member.userId)
+      .pipe(finalize(() => this.isRemovingMemberId.set(null)))
+      .subscribe({
+        next: () => {
+          this.members.update((members) => members.filter((candidate) => candidate.id !== member.id));
+          if (this.createdMemberCount) {
+            this.createdMemberCount(this.members().length);
+          }
+          this.memberActionSuccess.set(`${member.displayName || member.username} was removed.`);
+        },
+        error: (error) => {
+          if (error?.status === 403) {
+            this.memberActionError.set('You do not have permission to remove this member.');
+          } else if (error?.status === 404) {
+            this.memberActionError.set('Group or member was not found.');
+          } else if (error?.status === 400) {
+            this.memberActionError.set('This member cannot be removed.');
+          } else {
+            this.memberActionError.set('Could not remove member. Please try again.');
+          }
+        }
+      });
+  }
+
+  leaveCurrentGroup(member: MemberResponse): void {
+    if (!this.selectedGroup || !this.canCurrentUserLeave(member)) {
+      return;
+    }
+
+    const confirmed = window.confirm(`Leave ${this.selectedGroup.name}?`);
+    if (!confirmed) {
+      return;
+    }
+
+    this.memberActionError.set(null);
+    this.memberActionSuccess.set(null);
+    this.isLeavingGroup.set(true);
+
+    this.groupService
+      .leaveGroup(this.selectedGroup.id)
+      .pipe(finalize(() => this.isLeavingGroup.set(false)))
+      .subscribe({
+        next: () => {
+          this.groupLeft.emit(`You left ${this.selectedGroup?.name ?? 'the group'}.`);
+        },
+        error: (error) => {
+          if (error?.status === 403) {
+            this.memberActionError.set('You are not a member of this group.');
+          } else if (error?.status === 400) {
+            this.memberActionError.set('Owners must transfer ownership before leaving.');
+          } else if (error?.status === 404) {
+            this.memberActionError.set('This group no longer exists.');
+          } else {
+            this.memberActionError.set('Could not leave group. Please try again.');
+          }
         }
       });
   }
@@ -160,7 +275,7 @@ export class MembersComponent implements OnChanges {
           } else if (error.status === 409) {
             this.addMemberError.set('User is already a member of this group.');
           } else if (error.status === 403) {
-            this.addMemberError.set('Only the group creator can add members.');
+            this.addMemberError.set('Only group owner or admin can add members.');
           } else {
             this.addMemberError.set('Could not add member. Please try again.');
           }
@@ -171,5 +286,13 @@ export class MembersComponent implements OnChanges {
   hasAddMemberError(controlName: 'email'): boolean {
     const control = this.addMemberForm.controls[controlName];
     return control.invalid && control.touched;
+  }
+
+  private getCurrentUserRole(): MemberResponse['role'] | null {
+    if (!this.currentUserId) {
+      return null;
+    }
+
+    return this.members().find((member) => member.userId === this.currentUserId)?.role ?? null;
   }
 }

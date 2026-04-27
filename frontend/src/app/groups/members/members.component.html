@@ -1,7 +1,7 @@
 <section class="members-section">
   <header class="members-header">
     <h4>Members ({{ members().length }})</h4>
-    @if (isGroupCreator()) {
+    @if (canManageMembers()) {
       <button type="button" class="add-member-btn" (click)="openAddMemberForm()">+ Add Member</button>
     }
   </header>
@@ -22,9 +22,38 @@
     <ul class="members-list">
       @for (member of members(); track member.id) {
         <li class="member-item">
-          <div class="member-info">
-            <p class="member-name">{{ member.displayName || member.username }}</p>
-            <p class="member-email">{{ member.email }}</p>
+          <div class="member-main">
+            <div class="member-info">
+              <p class="member-name">{{ member.displayName || member.username }}</p>
+              <p class="member-email">{{ member.email }}</p>
+            </div>
+            <div class="member-actions">
+              @if (canRemoveMember(member)) {
+                <button
+                  type="button"
+                  class="member-action remove"
+                  (click)="removeMember(member)"
+                  [disabled]="isRemovingMemberId() === member.id || isLeavingGroup()"
+                >
+                  {{ isRemovingMemberId() === member.id ? 'Removing...' : 'Remove' }}
+                </button>
+              }
+
+              @if (canCurrentUserLeave(member)) {
+                <button
+                  type="button"
+                  class="member-action leave"
+                  (click)="leaveCurrentGroup(member)"
+                  [disabled]="isLeavingGroup() || isRemovingMemberId() !== null"
+                >
+                  {{ isLeavingGroup() ? 'Leaving...' : 'Leave Group' }}
+                </button>
+              }
+
+              @if (isCurrentUserOwner() && currentUserId === member.userId) {
+                <p class="owner-note">Transfer ownership before leaving.</p>
+              }
+            </div>
           </div>
           <span
             class="member-role"
@@ -36,6 +65,14 @@
         </li>
       }
     </ul>
+  }
+
+  @if (memberActionError()) {
+    <p class="error inline-feedback">{{ memberActionError() }}</p>
+  }
+
+  @if (memberActionSuccess()) {
+    <p class="success inline-feedback">{{ memberActionSuccess() }}</p>
   }
 
   @if (showAddMemberForm()) {
