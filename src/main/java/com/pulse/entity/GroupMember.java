@@ -39,6 +39,6 @@ public class GroupMember {
     private LocalDateTime joinedAt;
 
     public enum MemberRole {
-        ADMIN, MEMBER
+        OWNER, ADMIN, MEMBER
     }
 }

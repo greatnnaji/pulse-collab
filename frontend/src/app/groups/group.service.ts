@@ -28,4 +28,12 @@ export class GroupService {
   addMemberToGroup(groupId: number, payload: AddMemberRequest): Observable<MemberResponse> {
     return this.http.post<MemberResponse>(`${this.baseUrl}/${groupId}/members`, payload);
   }
+
+  removeMemberFromGroup(groupId: number, memberUserId: number): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/${groupId}/members/${memberUserId}`);
+  }
+
+  leaveGroup(groupId: number): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/${groupId}/members/me`);
+  }
 }

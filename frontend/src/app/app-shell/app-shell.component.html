@@ -27,6 +27,13 @@
           <p class="error">Description can be up to 500 characters.</p>
         }
 
+        <label for="groupVisibility">Visibility</label>
+        <select id="groupVisibility" formControlName="visibility">
+          <option value="PUBLIC">Public</option>
+          <option value="PRIVATE">Private</option>
+        </select>
+        <p class="helper-text">Private groups are only visible to members.</p>
+
         @if (createGroupError()) {
           <p class="error">{{ createGroupError() }}</p>
         }
@@ -60,6 +67,9 @@
               @if (group.memberCount !== null && group.memberCount !== undefined) {
                 <span class="group-meta">{{ group.memberCount }} members</span>
               }
+              <span class="group-visibility" [class.private]="group.visibility === 'PRIVATE'">
+                {{ group.visibility === 'PRIVATE' ? 'Private' : 'Public' }}
+              </span>
             </button>
           </li>
         }
@@ -102,6 +112,16 @@
           <p>{{ loadingError() }}</p>
           <button type="button" class="primary-inline" (click)="loadAppData()">Retry</button>
         </div>
+      } @else if (groupAccessError()) {
+        <div class="state-card access-state">
+          <h3>Private group access blocked</h3>
+          <p>{{ groupAccessError() }}</p>
+        </div>
+      } @else if (groupActionNotice()) {
+        <div class="state-card access-state">
+          <h3>Group updated</h3>
+          <p>{{ groupActionNotice() }}</p>
+        </div>
       } @else if (groups().length === 0) {
         <div class="state-card">
           <h3>Welcome to Pulse</h3>
@@ -116,7 +136,15 @@
       } @else {
         <article class="group-detail">
           <header>
-            <h3>{{ selectedGroup()?.name }}</h3>
+            <h3>
+              {{ selectedGroup()?.name }}
+              <span
+                class="group-visibility group-visibility-inline"
+                [class.private]="selectedGroup()?.visibility === 'PRIVATE'"
+              >
+                {{ selectedGroup()?.visibility === 'PRIVATE' ? 'Private' : 'Public' }}
+              </span>
+            </h3>
             <p>
               @if (selectedGroup()?.memberCount !== null && selectedGroup()?.memberCount !== undefined) {
                 {{ selectedGroup()?.memberCount }} member(s)
@@ -126,6 +154,12 @@
             </p>
           </header>
 
+          @if (groupAccessError()) {
+            <div class="access-banner" role="alert">
+              <p>{{ groupAccessError() }}</p>
+            </div>
+          }
+
           @if (selectedGroup()?.description) {
             <p class="group-description">{{ selectedGroup()?.description }}</p>
           }
@@ -134,6 +168,8 @@
             [selectedGroup]="selectedGroup()"
             [currentUserId]="currentUser()?.id ?? null"
             [createdMemberCount]="updateMemberCount"
+            (accessDenied)="onGroupAccessDenied($event)"
+            (groupLeft)="onGroupLeft($event)"
           ></app-members>
 
           <div class="placeholder-card">

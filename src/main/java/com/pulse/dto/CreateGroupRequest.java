@@ -1,5 +1,6 @@
 package com.pulse.dto;
 
+import com.pulse.entity.Group;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -21,6 +22,9 @@ public class CreateGroupRequest {
     private String description;
 
     private String avatarUrl;
+
+    @Builder.Default
+    private Group.Visibility visibility = Group.Visibility.PUBLIC;
 
     // TODO: Add list of initial member IDs when implementing member management
 }

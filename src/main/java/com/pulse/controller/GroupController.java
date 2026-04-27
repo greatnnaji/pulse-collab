@@ -56,6 +56,20 @@ public class GroupController {
         return ResponseEntity.status(HttpStatus.CREATED).body(added);
     }
 
+    @DeleteMapping("/{groupId}/members/{memberUserId}")
+    public ResponseEntity<Void> removeMemberFromGroup(@PathVariable Long groupId, @PathVariable Long memberUserId) {
+        Long currentUserId = extractCurrentUserId();
+        groupService.removeMemberFromGroup(groupId, memberUserId, currentUserId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{groupId}/members/me")
+    public ResponseEntity<Void> leaveGroup(@PathVariable Long groupId) {
+        Long currentUserId = extractCurrentUserId();
+        groupService.leaveGroup(groupId, currentUserId);
+        return ResponseEntity.noContent().build();
+    }
+
     private Long extractCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || authentication.getPrincipal() == null) {

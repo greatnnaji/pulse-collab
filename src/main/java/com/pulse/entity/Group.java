@@ -20,6 +20,11 @@ import java.util.Set;
 @Builder
 public class Group {
 
+    public enum Visibility {
+        PUBLIC,
+        PRIVATE
+    }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -30,6 +35,11 @@ public class Group {
     private String description;
 
     private String avatarUrl;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    private Visibility visibility = Visibility.PUBLIC;
 
     @Column(nullable = false)
     private Long createdBy;  // User ID of creator
