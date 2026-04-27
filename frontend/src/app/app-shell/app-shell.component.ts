@@ -23,6 +23,7 @@ export class AppShellComponent implements OnInit {
 
   readonly groups = signal<GroupResponse[]>([]);
   readonly selectedGroupId = signal<number | null>(null);
+  readonly groupAccessError = signal<string | null>(null);
 
   readonly darkMode = signal(false);
 
@@ -32,7 +33,8 @@ export class AppShellComponent implements OnInit {
 
   readonly createGroupForm = this.formBuilder.nonNullable.group({
     name: ['', [Validators.required, Validators.minLength(1), Validators.maxLength(100)]],
-    description: ['', [Validators.maxLength(500)]]
+    description: ['', [Validators.maxLength(500)]],
+    visibility: ['PUBLIC' as const, [Validators.required]]
   });
 
   readonly currentUser = this.authService.currentUser;
@@ -74,6 +76,7 @@ export class AppShellComponent implements OnInit {
   loadAppData(): void {
     this.isLoading.set(true);
     this.loadingError.set(null);
+    this.groupAccessError.set(null);
 
     forkJoin({
       user: this.authService.getCurrentUser(),
@@ -93,6 +96,7 @@ export class AppShellComponent implements OnInit {
 
   selectGroup(groupId: number): void {
     this.selectedGroupId.set(groupId);
+    this.groupAccessError.set(null);
   }
 
   toggleTheme(): void {
@@ -110,7 +114,7 @@ export class AppShellComponent implements OnInit {
   cancelCreateGroup(): void {
     this.createGroupOpen.set(false);
     this.createGroupError.set(null);
-    this.createGroupForm.reset({ name: '', description: '' });
+    this.createGroupForm.reset({ name: '', description: '', visibility: 'PUBLIC' });
   }
 
   submitCreateGroup(): void {
@@ -125,7 +129,8 @@ export class AppShellComponent implements OnInit {
     const formValue = this.createGroupForm.getRawValue();
     const payload = {
       name: formValue.name.trim(),
-      description: formValue.description.trim() || undefined
+      description: formValue.description.trim() || undefined,
+      visibility: formValue.visibility
     };
 
     this.groupService
@@ -142,6 +147,7 @@ export class AppShellComponent implements OnInit {
         next: ({ groups, createdGroupId }) => {
           this.groups.set(groups);
           this.selectedGroupId.set(createdGroupId);
+          this.groupAccessError.set(null);
           this.cancelCreateGroup();
         },
         error: () => {
@@ -158,6 +164,11 @@ export class AppShellComponent implements OnInit {
   hasCreateGroupError(controlName: 'name' | 'description'): boolean {
     const control = this.createGroupForm.controls[controlName];
     return control.invalid && control.touched;
+  }
+
+  onGroupAccessDenied(message: string): void {
+    this.selectedGroupId.set(null);
+    this.groupAccessError.set(message);
   }
 
   private initializeTheme(): void {

@@ -1,8 +1,11 @@
+export type GroupVisibility = 'PUBLIC' | 'PRIVATE';
+
 export interface GroupResponse {
   id: number;
   name: string;
   description: string | null;
   avatarUrl: string | null;
+  visibility: GroupVisibility;
   createdBy: number;
   createdAt: string;
   memberCount: number | null;
@@ -12,6 +15,7 @@ export interface CreateGroupRequest {
   name: string;
   description?: string;
   avatarUrl?: string;
+  visibility: GroupVisibility;
 }
 
 export type MemberRole = 'ADMIN' | 'MEMBER';

@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges, SimpleChanges, signal } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize } from 'rxjs';
@@ -17,6 +17,7 @@ export class MembersComponent implements OnChanges {
   @Input() selectedGroup: GroupResponse | null = null;
   @Input() currentUserId: number | null = null;
   @Input() createdMemberCount: ((count: number) => void) | null = null;
+  @Output() accessDenied = new EventEmitter<string>();
 
   readonly members = signal<MemberResponse[]>([]);
   readonly isLoadingMembers = signal(true);
@@ -93,6 +94,13 @@ export class MembersComponent implements OnChanges {
             if (this.createdMemberCount && this.selectedGroup.memberCount !== 0) {
               this.createdMemberCount(0);
             }
+            return;
+          }
+
+          if (error?.status === 403) {
+            const message = 'You are not a member of this private group.';
+            this.membersError.set(message);
+            this.accessDenied.emit(message);
             return;
           }
 
