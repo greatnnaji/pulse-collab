@@ -18,7 +18,7 @@ export interface CreateGroupRequest {
   visibility: GroupVisibility;
 }
 
-export type MemberRole = 'ADMIN' | 'MEMBER';
+export type MemberRole = 'OWNER' | 'ADMIN' | 'MEMBER';
 
 export interface MemberResponse {
   id: number;

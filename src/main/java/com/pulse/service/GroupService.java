@@ -44,7 +44,7 @@ public class GroupService {
         GroupMember creatorMembership = GroupMember.builder()
                 .group(savedGroup)
                 .user(currentUser)
-                .role(GroupMember.MemberRole.ADMIN)
+            .role(GroupMember.MemberRole.OWNER)
                 .build();
         groupMemberRepository.save(creatorMembership);
 
@@ -93,12 +93,11 @@ public class GroupService {
     @Transactional
     public MemberResponse addMemberToGroup(Long groupId, AddMemberRequest request, Long currentUserId) {
         // Verify group exists
-        Group group = groupRepository.findById(groupId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Group not found"));
+        Group group = getExistingGroup(groupId);
 
-        // Verify current user is the group creator (admin)
-        if (!group.getCreatedBy().equals(currentUserId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only the group creator can add members");
+        GroupMember actingMembership = getExistingMembership(groupId, currentUserId);
+        if (!canManageMembers(actingMembership.getRole())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only group owner or admin can add members");
         }
 
         // Find user by email
@@ -119,6 +118,60 @@ public class GroupService {
 
         GroupMember savedMember = groupMemberRepository.save(newMember);
         return MemberResponse.from(savedMember);
+    }
+
+    @Transactional(readOnly = true)
+    public boolean isMember(Long groupId, Long userId) {
+        return groupMemberRepository.existsByGroupIdAndUserId(groupId, userId);
+    }
+
+    @Transactional
+    public void removeMemberFromGroup(Long groupId, Long memberUserId, Long actingUserId) {
+        getExistingGroup(groupId);
+
+        GroupMember actingMembership = getExistingMembership(groupId, actingUserId);
+        if (!canManageMembers(actingMembership.getRole())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only group owner or admin can remove members");
+        }
+
+        if (actingUserId.equals(memberUserId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Use leave group operation to remove your own membership");
+        }
+
+        GroupMember membershipToRemove = getExistingMembership(groupId, memberUserId);
+        if (membershipToRemove.getRole() == GroupMember.MemberRole.OWNER) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Owner cannot be removed from the group");
+        }
+
+        groupMemberRepository.delete(membershipToRemove);
+    }
+
+    @Transactional
+    public void leaveGroup(Long groupId, Long currentUserId) {
+        getExistingGroup(groupId);
+
+        GroupMember membership = getExistingMembership(groupId, currentUserId);
+        if (membership.getRole() == GroupMember.MemberRole.OWNER) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Owner cannot leave group before transferring ownership");
+        }
+
+        groupMemberRepository.delete(membership);
+    }
+
+    private Group getExistingGroup(Long groupId) {
+        return groupRepository.findById(groupId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Group not found"));
+    }
+
+    private GroupMember getExistingMembership(Long groupId, Long userId) {
+        return groupMemberRepository.findByGroupIdAndUserId(groupId, userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Not a member of this group"));
+    }
+
+    private boolean canManageMembers(GroupMember.MemberRole role) {
+        return role == GroupMember.MemberRole.OWNER || role == GroupMember.MemberRole.ADMIN;
     }
 
     private GroupResponse toResponse(Group group) {

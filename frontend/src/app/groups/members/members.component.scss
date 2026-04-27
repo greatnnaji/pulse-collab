@@ -137,6 +137,11 @@
           background: var(--badge-admin-bg, #fee2e2);
           color: var(--badge-admin-text, #991b1b);
         }
+
+        &.owner {
+          background: var(--badge-owner-bg, #fef3c7);
+          color: var(--badge-owner-text, #92400e);
+        }
       }
     }
   }

@@ -26,7 +26,13 @@
             <p class="member-name">{{ member.displayName || member.username }}</p>
             <p class="member-email">{{ member.email }}</p>
           </div>
-          <span class="member-role" [class.admin]="member.role === 'ADMIN'">{{ member.role }}</span>
+          <span
+            class="member-role"
+            [class.admin]="member.role === 'ADMIN'"
+            [class.owner]="member.role === 'OWNER'"
+          >
+            {{ member.role }}
+          </span>
         </li>
       }
     </ul>
