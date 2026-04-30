@@ -4,6 +4,7 @@ import com.pulse.dto.AddMemberRequest;
 import com.pulse.dto.CreateGroupRequest;
 import com.pulse.dto.GroupResponse;
 import com.pulse.dto.MemberResponse;
+import com.pulse.entity.AuditLogEventType;
 import com.pulse.entity.Group;
 import com.pulse.entity.GroupMember;
 import com.pulse.entity.User;
@@ -25,6 +26,7 @@ public class GroupService {
     private final GroupRepository groupRepository;
     private final GroupMemberRepository groupMemberRepository;
     private final UserRepository userRepository;
+    private final AuditLogService auditLogService;
 
     @Transactional
     public GroupResponse createGroup(CreateGroupRequest request, Long currentUserId) {
@@ -47,6 +49,15 @@ public class GroupService {
             .role(GroupMember.MemberRole.OWNER)
                 .build();
         groupMemberRepository.save(creatorMembership);
+        auditLogService.record(
+            AuditLogEventType.GROUP_CREATED,
+            currentUserId,
+            currentUser.getUsername(),
+            "GROUP",
+            savedGroup.getId(),
+            savedGroup.getName(),
+            "Group created"
+        );
 
         return toResponse(savedGroup);
     }
@@ -117,6 +128,15 @@ public class GroupService {
                 .build();
 
         GroupMember savedMember = groupMemberRepository.save(newMember);
+        auditLogService.record(
+            AuditLogEventType.GROUP_MEMBER_ADDED,
+            currentUserId,
+            actingMembership.getUser().getUsername(),
+            "GROUP",
+            groupId,
+            group.getName(),
+            "Added user " + userToAdd.getId()
+        );
         return MemberResponse.from(savedMember);
     }
 
@@ -127,7 +147,7 @@ public class GroupService {
 
     @Transactional
     public void removeMemberFromGroup(Long groupId, Long memberUserId, Long actingUserId) {
-        getExistingGroup(groupId);
+        Group group = getExistingGroup(groupId);
 
         GroupMember actingMembership = getExistingMembership(groupId, actingUserId);
         if (!canManageMembers(actingMembership.getRole())) {
@@ -145,11 +165,20 @@ public class GroupService {
         }
 
         groupMemberRepository.delete(membershipToRemove);
+        auditLogService.record(
+            AuditLogEventType.GROUP_MEMBER_REMOVED,
+            actingUserId,
+            actingMembership.getUser().getUsername(),
+            "GROUP",
+            groupId,
+            group.getName(),
+            "Removed user " + memberUserId
+        );
     }
 
     @Transactional
     public void leaveGroup(Long groupId, Long currentUserId) {
-        getExistingGroup(groupId);
+        Group group = getExistingGroup(groupId);
 
         GroupMember membership = getExistingMembership(groupId, currentUserId);
         if (membership.getRole() == GroupMember.MemberRole.OWNER) {
@@ -158,6 +187,15 @@ public class GroupService {
         }
 
         groupMemberRepository.delete(membership);
+        auditLogService.record(
+            AuditLogEventType.GROUP_LEFT,
+            currentUserId,
+            membership.getUser().getUsername(),
+            "GROUP",
+            groupId,
+            group.getName(),
+            "User left the group"
+        );
     }
 
     private Group getExistingGroup(Long groupId) {

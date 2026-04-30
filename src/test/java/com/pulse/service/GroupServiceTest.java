@@ -41,6 +41,9 @@ class GroupServiceTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private AuditLogService auditLogService;
+
     @InjectMocks
     private GroupService groupService;
 
@@ -75,6 +78,7 @@ class GroupServiceTest {
         assertEquals(Group.Visibility.PUBLIC, groupCaptor.getValue().getVisibility());
         assertEquals(Group.Visibility.PUBLIC, response.getVisibility());
         verify(groupMemberRepository).save(any(GroupMember.class));
+        verify(auditLogService).record(any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -154,7 +158,10 @@ class GroupServiceTest {
         Long targetUserId = 20L;
 
         Group group = Group.builder().id(groupId).createdBy(999L).build();
-        GroupMember actingMember = GroupMember.builder().role(GroupMember.MemberRole.ADMIN).build();
+        GroupMember actingMember = GroupMember.builder()
+            .role(GroupMember.MemberRole.ADMIN)
+            .user(User.builder().id(currentUserId).username("admin").build())
+            .build();
         User targetUser = User.builder().id(targetUserId).email("new@pulse.com").build();
         AddMemberRequest request = AddMemberRequest.builder().email("new@pulse.com").build();
 
@@ -175,6 +182,7 @@ class GroupServiceTest {
         groupService.addMemberToGroup(groupId, request, currentUserId);
 
         verify(groupMemberRepository).save(any(GroupMember.class));
+        verify(auditLogService).record(any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -197,6 +205,7 @@ class GroupServiceTest {
         assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
         assertEquals("Owner cannot be removed from the group", exception.getReason());
         verify(groupMemberRepository, never()).delete(any(GroupMember.class));
+        verify(auditLogService, never()).record(any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -259,7 +268,10 @@ class GroupServiceTest {
         Long targetUserId = 3L;
 
         Group group = Group.builder().id(groupId).build();
-        GroupMember actingMembership = GroupMember.builder().role(GroupMember.MemberRole.ADMIN).build();
+        GroupMember actingMembership = GroupMember.builder()
+            .role(GroupMember.MemberRole.ADMIN)
+            .user(User.builder().id(actingUserId).username("admin").build())
+            .build();
         GroupMember targetMembership = GroupMember.builder().role(GroupMember.MemberRole.MEMBER).build();
 
         when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
@@ -277,7 +289,10 @@ class GroupServiceTest {
         Long ownerUserId = 1L;
 
         Group group = Group.builder().id(groupId).build();
-        GroupMember ownerMembership = GroupMember.builder().role(GroupMember.MemberRole.OWNER).build();
+        GroupMember ownerMembership = GroupMember.builder()
+                .role(GroupMember.MemberRole.OWNER)
+                .user(User.builder().id(ownerUserId).username("owner").build())
+                .build();
 
         when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
         when(groupMemberRepository.findByGroupIdAndUserId(groupId, ownerUserId)).thenReturn(Optional.of(ownerMembership));
@@ -296,7 +311,10 @@ class GroupServiceTest {
         Long memberUserId = 2L;
 
         Group group = Group.builder().id(groupId).build();
-        GroupMember member = GroupMember.builder().role(GroupMember.MemberRole.MEMBER).build();
+        GroupMember member = GroupMember.builder()
+                .role(GroupMember.MemberRole.MEMBER)
+                .user(User.builder().id(memberUserId).username("member").build())
+                .build();
 
         when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
         when(groupMemberRepository.findByGroupIdAndUserId(groupId, memberUserId)).thenReturn(Optional.of(member));
