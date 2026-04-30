@@ -135,7 +135,7 @@ public class GroupService {
             "GROUP",
             groupId,
             group.getName(),
-            "Added user " + userToAdd.getId() + " (" + userToAdd.getEmail() + ")"
+            "Added user " + userToAdd.getId()
         );
         return MemberResponse.from(savedMember);
     }
