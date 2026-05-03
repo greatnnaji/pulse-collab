@@ -75,9 +75,9 @@ public class GroupService {
         Group group = groupRepository.findById(groupId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Group not found"));
 
-        if (group.getVisibility() == Group.Visibility.PRIVATE
-                && !groupMemberRepository.existsByGroupIdAndUserId(groupId, currentUserId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not a member of this private group");
+        // All groups now require membership (visibility ignored as short-term enforcement)
+        if (!groupMemberRepository.existsByGroupIdAndUserId(groupId, currentUserId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not a member of this group");
         }
 
         return toResponse(group);
