@@ -125,14 +125,15 @@ class GroupServiceTest {
                 () -> groupService.getGroupById(groupId, currentUserId));
 
         assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
-        assertEquals("You are not a member of this private group", exception.getReason());
+        assertEquals("You are not a member of this group", exception.getReason());
     }
 
     @Test
-    void getGroupById_allowsNonMemberForPublicGroup() {
+    void getGroupById_blocksNonMemberForPublicGroup() {
         Long groupId = 3L;
         Long currentUserId = 42L;
 
+        // All groups now require membership (visibility ignored)
         Group publicGroup = Group.builder()
                 .id(groupId)
                 .name("Public group")
@@ -142,13 +143,13 @@ class GroupServiceTest {
                 .build();
 
         when(groupRepository.findById(groupId)).thenReturn(Optional.of(publicGroup));
-        when(groupMemberRepository.countByGroupId(groupId)).thenReturn(2L);
+        when(groupMemberRepository.existsByGroupIdAndUserId(groupId, currentUserId)).thenReturn(false);
 
-        GroupResponse response = groupService.getGroupById(groupId, currentUserId);
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> groupService.getGroupById(groupId, currentUserId));
 
-        assertEquals(groupId, response.getId());
-        assertEquals(Group.Visibility.PUBLIC, response.getVisibility());
-        assertEquals(2, response.getMemberCount());
+        assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
+        assertEquals("You are not a member of this group", exception.getReason());
     }
 
     @Test
