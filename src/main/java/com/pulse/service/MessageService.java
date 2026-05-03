@@ -56,8 +56,8 @@ public class MessageService {
 
     @Transactional(readOnly = true)
     public Page<MessageResponse> getMessagesByGroup(Long groupId, Long currentUserId, int page, int size) {
-        Group group = groupRepository.findById(groupId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Group not found"));
+        groupRepository.findById(groupId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Group not found"));
 
         if (!isMember(currentUserId, groupId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not a member of this group");
