@@ -44,7 +44,6 @@ public class AuditLog {
 
     private String targetName;
 
-    @Lob
     private String details;
 
     @CreationTimestamp
