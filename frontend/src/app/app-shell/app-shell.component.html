@@ -27,13 +27,6 @@
           <p class="error">Description can be up to 500 characters.</p>
         }
 
-        <label for="groupVisibility">Visibility</label>
-        <select id="groupVisibility" formControlName="visibility">
-          <option value="PUBLIC">Public</option>
-          <option value="PRIVATE">Private</option>
-        </select>
-        <p class="helper-text">Private groups are only visible to members.</p>
-
         @if (createGroupError()) {
           <p class="error">{{ createGroupError() }}</p>
         }
@@ -67,9 +60,6 @@
               @if (group.memberCount !== null && group.memberCount !== undefined) {
                 <span class="group-meta">{{ group.memberCount }} members</span>
               }
-              <span class="group-visibility" [class.private]="group.visibility === 'PRIVATE'">
-                {{ group.visibility === 'PRIVATE' ? 'Private' : 'Public' }}
-              </span>
             </button>
           </li>
         }
@@ -138,12 +128,6 @@
           <header>
             <h3>
               {{ selectedGroup()?.name }}
-              <span
-                class="group-visibility group-visibility-inline"
-                [class.private]="selectedGroup()?.visibility === 'PRIVATE'"
-              >
-                {{ selectedGroup()?.visibility === 'PRIVATE' ? 'Private' : 'Public' }}
-              </span>
             </h3>
             <p>
               @if (selectedGroup()?.memberCount !== null && selectedGroup()?.memberCount !== undefined) {

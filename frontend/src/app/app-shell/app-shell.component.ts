@@ -34,8 +34,7 @@ export class AppShellComponent implements OnInit {
 
   readonly createGroupForm = this.formBuilder.nonNullable.group({
     name: ['', [Validators.required, Validators.minLength(1), Validators.maxLength(100)]],
-    description: ['', [Validators.maxLength(500)]],
-    visibility: ['PUBLIC' as const, [Validators.required]]
+    description: ['', [Validators.maxLength(500)]]
   });
 
   readonly currentUser = this.authService.currentUser;
@@ -117,7 +116,7 @@ export class AppShellComponent implements OnInit {
   cancelCreateGroup(): void {
     this.createGroupOpen.set(false);
     this.createGroupError.set(null);
-    this.createGroupForm.reset({ name: '', description: '', visibility: 'PUBLIC' });
+    this.createGroupForm.reset({ name: '', description: '' });
   }
 
   submitCreateGroup(): void {
@@ -132,8 +131,7 @@ export class AppShellComponent implements OnInit {
     const formValue = this.createGroupForm.getRawValue();
     const payload = {
       name: formValue.name.trim(),
-      description: formValue.description.trim() || undefined,
-      visibility: formValue.visibility
+      description: formValue.description.trim() || undefined
     };
 
     this.groupService

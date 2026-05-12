@@ -48,7 +48,7 @@ class GroupServiceTest {
     private GroupService groupService;
 
     @Test
-    void createGroup_defaultsVisibilityToPublic() {
+    void createGroup_mapsFieldsAndCreatesOwnerMembership() {
         Long currentUserId = 1L;
         User currentUser = User.builder().id(currentUserId).build();
         CreateGroupRequest request = CreateGroupRequest.builder()
@@ -62,7 +62,6 @@ class GroupServiceTest {
                 .name("Engineering")
                 .description("Team group")
                 .avatarUrl("https://example.com/group.png")
-                .visibility(Group.Visibility.PUBLIC)
                 .createdBy(currentUserId)
                 .createdAt(LocalDateTime.now())
                 .build();
@@ -75,8 +74,10 @@ class GroupServiceTest {
 
         ArgumentCaptor<Group> groupCaptor = ArgumentCaptor.forClass(Group.class);
         verify(groupRepository).save(groupCaptor.capture());
-        assertEquals(Group.Visibility.PUBLIC, groupCaptor.getValue().getVisibility());
-        assertEquals(Group.Visibility.PUBLIC, response.getVisibility());
+        assertEquals("Engineering", groupCaptor.getValue().getName());
+        assertEquals("Team group", groupCaptor.getValue().getDescription());
+        assertEquals("https://example.com/group.png", groupCaptor.getValue().getAvatarUrl());
+        assertEquals("Engineering", response.getName());
         verify(groupMemberRepository).save(any(GroupMember.class));
         verify(auditLogService).record(any(), any(), any(), any(), any(), any(), any());
     }
@@ -90,7 +91,6 @@ class GroupServiceTest {
         Group savedGroup = Group.builder()
                 .id(10L)
                 .name("Engineering")
-                .visibility(Group.Visibility.PUBLIC)
                 .createdBy(currentUserId)
                 .createdAt(LocalDateTime.now())
                 .build();
@@ -114,7 +114,6 @@ class GroupServiceTest {
         Group privateGroup = Group.builder()
                 .id(groupId)
                 .name("Private group")
-                .visibility(Group.Visibility.PRIVATE)
                 .createdBy(1L)
                 .build();
 
@@ -133,11 +132,9 @@ class GroupServiceTest {
         Long groupId = 3L;
         Long currentUserId = 42L;
 
-        // All groups now require membership (visibility ignored)
         Group publicGroup = Group.builder()
                 .id(groupId)
                 .name("Public group")
-                .visibility(Group.Visibility.PUBLIC)
                 .createdBy(1L)
                 .createdAt(LocalDateTime.now())
                 .build();
