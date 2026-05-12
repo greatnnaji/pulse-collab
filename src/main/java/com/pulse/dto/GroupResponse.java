@@ -1,6 +1,5 @@
 package com.pulse.dto;
 
-import com.pulse.entity.Group;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -18,7 +17,6 @@ public class GroupResponse {
     private String name;
     private String description;
     private String avatarUrl;
-    private Group.Visibility visibility;
     private Long createdBy;
     private LocalDateTime createdAt;
     private Integer memberCount;

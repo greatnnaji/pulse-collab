@@ -37,7 +37,6 @@ public class GroupService {
                 .name(request.getName())
                 .description(request.getDescription())
                 .avatarUrl(request.getAvatarUrl())
-                .visibility(request.getVisibility() == null ? Group.Visibility.PUBLIC : request.getVisibility())
                 .createdBy(currentUserId)
                 .build();
 
@@ -75,7 +74,6 @@ public class GroupService {
         Group group = groupRepository.findById(groupId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Group not found"));
 
-        // All groups now require membership (visibility ignored as short-term enforcement)
         if (!groupMemberRepository.existsByGroupIdAndUserId(groupId, currentUserId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not a member of this group");
         }
@@ -218,7 +216,6 @@ public class GroupService {
                 .name(group.getName())
                 .description(group.getDescription())
                 .avatarUrl(group.getAvatarUrl())
-                .visibility(group.getVisibility())
                 .createdBy(group.getCreatedBy())
                 .createdAt(group.getCreatedAt())
                 .memberCount(Math.toIntExact(groupMemberRepository.countByGroupId(group.getId())))
