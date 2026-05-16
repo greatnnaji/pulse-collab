@@ -5,6 +5,7 @@ import { authGuard } from './auth/auth.guard';
 import { AuthLayoutComponent } from './auth/layout/auth-layout.component';
 import { LoginComponent } from './auth/login/login.component';
 import { RegisterComponent } from './auth/register/register.component';
+import { MessageThreadComponent } from './messages/message-thread.component';
 
 export const appRoutes: Routes = [
   {
@@ -15,7 +16,13 @@ export const appRoutes: Routes = [
   {
     path: 'app',
     component: AppShellComponent,
-    canActivate: [authGuard]
+    canActivate: [authGuard],
+    children: [
+      {
+        path: 'groups/:groupId/messages',
+        component: MessageThreadComponent
+      }
+    ]
   },
   {
     path: 'auth',

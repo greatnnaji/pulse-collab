@@ -1,5 +1,6 @@
 import { Component, OnInit, computed, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { RouterModule } from '@angular/router';
 import { Router } from '@angular/router';
 import { finalize, forkJoin, map, switchMap, take } from 'rxjs';
 
@@ -11,7 +12,7 @@ import { MembersComponent } from '../groups/members/members.component';
 @Component({
   selector: 'app-app-shell',
   standalone: true,
-  imports: [ReactiveFormsModule, MembersComponent],
+  imports: [ReactiveFormsModule, MembersComponent, RouterModule],
   templateUrl: './app-shell.component.html',
   styleUrl: './app-shell.component.scss'
 })

@@ -155,11 +155,12 @@
             (accessDenied)="onGroupAccessDenied($event)"
             (groupLeft)="onGroupLeft($event)"
           ></app-members>
-
           <div class="placeholder-card">
             <p class="placeholder-title">No messages yet</p>
             <p>Chat coming next.</p>
           </div>
+
+          <router-outlet></router-outlet>
         </article>
       }
     </section>
