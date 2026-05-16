@@ -3,6 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { MessageResponse, PageResponse } from './message.models';
+import { CreateMessageRequest } from './create-message-request.model';
 
 @Injectable({
   providedIn: 'root'
@@ -15,5 +16,9 @@ export class MessageService {
   getMessages(groupId: number, page = 0, size = 20): Observable<PageResponse<MessageResponse>> {
     const params = new HttpParams().set('page', String(page)).set('size', String(size));
     return this.http.get<PageResponse<MessageResponse>>(`${this.baseUrl}/${groupId}/messages`, { params });
+  }
+
+  createMessage(groupId: number, payload: CreateMessageRequest): Observable<MessageResponse> {
+    return this.http.post<MessageResponse>(`${this.baseUrl}/${groupId}/messages`, payload);
   }
 }

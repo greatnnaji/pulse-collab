@@ -1,5 +1,6 @@
 import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { MessageService } from './message.service';
 import { MessageResponse } from './message.models';
@@ -7,7 +8,7 @@ import { MessageResponse } from './message.models';
 @Component({
   selector: 'app-message-thread',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './message-thread.component.html',
   styleUrls: ['./message-thread.component.scss']
 })
@@ -17,6 +18,8 @@ export class MessageThreadComponent implements OnInit {
   readonly error = signal<string | null>(null);
 
   private groupId = 0;
+  readonly newMessage = signal('');
+  readonly sending = signal(false);
 
   constructor(private readonly route: ActivatedRoute, private readonly messageService: MessageService) {}
 
@@ -42,6 +45,44 @@ export class MessageThreadComponent implements OnInit {
       error: () => {
         this.error.set('Unable to load messages');
         this.loading.set(false);
+      }
+    });
+  }
+
+  send(): void {
+    const content = this.newMessage().trim();
+    if (!content || this.sending()) {
+      return;
+    }
+
+    this.sending.set(true);
+    this.error.set(null);
+
+    const tempId = -Date.now();
+    const tempMessage: MessageResponse = {
+      id: tempId,
+      groupId: this.groupId,
+      senderId: -1,
+      senderUsername: 'You',
+      content,
+      createdAt: new Date().toISOString()
+    };
+
+    // optimistic insert at top
+    this.messages.update((list) => [tempMessage, ...list]);
+    this.newMessage.set('');
+
+    this.messageService.createMessage(this.groupId, { content }).subscribe({
+      next: (created) => {
+        // replace temp message with server-provided message
+        this.messages.update((list) => list.map((m) => (m.id === tempId ? created : m)));
+        this.sending.set(false);
+      },
+      error: () => {
+        // remove temp message and show error
+        this.messages.update((list) => list.filter((m) => m.id !== tempId));
+        this.error.set('Failed to send message');
+        this.sending.set(false);
       }
     });
   }
