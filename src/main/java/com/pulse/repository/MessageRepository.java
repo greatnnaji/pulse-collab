@@ -9,6 +9,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface MessageRepository extends JpaRepository<Message, Long> {
 
-    Page<Message> findByGroupIdOrderByCreatedAtDesc(Long groupId, Pageable pageable);
+    Page<Message> findByGroupId(Long groupId, Pageable pageable);
 
 }

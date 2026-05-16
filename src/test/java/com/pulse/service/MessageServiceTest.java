@@ -168,7 +168,7 @@ class MessageServiceTest {
 
         when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
         when(groupMemberRepository.existsByGroupIdAndUserId(groupId, currentUserId)).thenReturn(true);
-        when(messageRepository.findByGroupIdOrderByCreatedAtDesc(eq(groupId), any(Pageable.class)))
+        when(messageRepository.findByGroupId(eq(groupId), any(Pageable.class)))
                 .thenReturn(messagesPage);
 
         Page<MessageResponse> response = messageService.getMessagesByGroup(groupId, currentUserId, 0, 20);
@@ -195,7 +195,7 @@ class MessageServiceTest {
                 () -> messageService.getMessagesByGroup(groupId, currentUserId, 0, 20));
 
         assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
-        verify(messageRepository, never()).findByGroupIdOrderByCreatedAtDesc(any(), any());
+        verify(messageRepository, never()).findByGroupId(any(), any());
     }
 
     @Test
@@ -209,7 +209,7 @@ class MessageServiceTest {
                 () -> messageService.getMessagesByGroup(groupId, currentUserId, 0, 20));
 
         assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
-        verify(messageRepository, never()).findByGroupIdOrderByCreatedAtDesc(any(), any());
+        verify(messageRepository, never()).findByGroupId(any(), any());
     }
 
     @Test
@@ -232,7 +232,7 @@ class MessageServiceTest {
 
         when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
         when(groupMemberRepository.existsByGroupIdAndUserId(groupId, currentUserId)).thenReturn(true);
-        when(messageRepository.findByGroupIdOrderByCreatedAtDesc(eq(groupId), any(Pageable.class)))
+        when(messageRepository.findByGroupId(eq(groupId), any(Pageable.class)))
                 .thenReturn(messagesPage);
 
         Page<MessageResponse> response = messageService.getMessagesByGroup(groupId, currentUserId, 0, 10);
@@ -240,6 +240,6 @@ class MessageServiceTest {
         assertEquals(1, response.getContent().size());
         assertEquals(1, response.getTotalElements());
         assertEquals(0, response.getNumber());
-        verify(messageRepository).findByGroupIdOrderByCreatedAtDesc(eq(groupId), any(Pageable.class));
+        verify(messageRepository).findByGroupId(eq(groupId), any(Pageable.class));
     }
 }

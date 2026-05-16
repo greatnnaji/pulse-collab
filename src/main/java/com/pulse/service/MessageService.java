@@ -64,7 +64,7 @@ public class MessageService {
         }
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<Message> messages = messageRepository.findByGroupIdOrderByCreatedAtDesc(groupId, pageable);
+        Page<Message> messages = messageRepository.findByGroupId(groupId, pageable);
 
         return messages.map(MessageResponse::from);
     }
