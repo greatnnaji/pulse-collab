@@ -1,9 +1,11 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { AfterViewInit, Component, DestroyRef, ElementRef, OnInit, ViewChild, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MessageService } from './message.service';
 import { MessageResponse } from './message.models';
+import { AuthService } from '../auth/auth.service';
 
 @Component({
   selector: 'app-message-thread',
@@ -12,21 +14,40 @@ import { MessageResponse } from './message.models';
   templateUrl: './message-thread.component.html',
   styleUrls: ['./message-thread.component.scss']
 })
-export class MessageThreadComponent implements OnInit {
+export class MessageThreadComponent implements OnInit, AfterViewInit {
   readonly messages = signal<MessageResponse[]>([]);
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
 
   private groupId = 0;
+  private loadVersion = 0;
   readonly newMessage = signal('');
   readonly sending = signal(false);
+  private currentUserId: number | null = null;
+  private readonly destroyRef = inject(DestroyRef);
 
-  constructor(private readonly route: ActivatedRoute, private readonly messageService: MessageService) {}
+  @ViewChild('scrollContainer', { static: false }) scrollContainer?: ElementRef<HTMLDivElement>;
+
+  constructor(
+    private readonly route: ActivatedRoute,
+    private readonly messageService: MessageService,
+    private readonly authService: AuthService
+  ) {}
 
   ngOnInit(): void {
-    const param = this.route.snapshot.paramMap.get('groupId');
-    this.groupId = param ? Number(param) : 0;
-    this.loadMessages();
+    this.currentUserId = this.authService.currentUser()?.id ?? null;
+
+    this.route.paramMap
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((params) => {
+        const nextGroupId = Number(params.get('groupId'));
+        this.setGroup(nextGroupId);
+      });
+  }
+
+  ngAfterViewInit(): void {
+    // ensure we scroll after initial render
+    setTimeout(() => this.scrollToBottom(), 0);
   }
 
   loadMessages(): void {
@@ -35,14 +56,26 @@ export class MessageThreadComponent implements OnInit {
       return;
     }
 
+    const requestVersion = ++this.loadVersion;
     this.loading.set(true);
     this.error.set(null);
     this.messageService.getMessages(this.groupId, 0, 50).subscribe({
       next: (page) => {
-        this.messages.set(page.content);
+        if (requestVersion !== this.loadVersion) {
+          return;
+        }
+
+        // normalize ordering (oldest -> newest)
+        const sorted = page.content.slice().sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        this.messages.set(sorted);
         this.loading.set(false);
+        setTimeout(() => this.scrollToBottom(), 0);
       },
       error: () => {
+        if (requestVersion !== this.loadVersion) {
+          return;
+        }
+
         this.error.set('Unable to load messages');
         this.loading.set(false);
       }
@@ -62,21 +95,24 @@ export class MessageThreadComponent implements OnInit {
     const tempMessage: MessageResponse = {
       id: tempId,
       groupId: this.groupId,
-      senderId: -1,
+      senderId: this.currentUserId ?? -1,
       senderUsername: 'You',
       content,
       createdAt: new Date().toISOString()
     };
 
-    // optimistic insert at top
-    this.messages.update((list) => [tempMessage, ...list]);
+    // optimistic append at end (oldest -> newest ordering)
+    this.messages.update((list) => [...list, tempMessage]);
     this.newMessage.set('');
+
+    setTimeout(() => this.scrollToBottom(), 0);
 
     this.messageService.createMessage(this.groupId, { content }).subscribe({
       next: (created) => {
         // replace temp message with server-provided message
         this.messages.update((list) => list.map((m) => (m.id === tempId ? created : m)));
         this.sending.set(false);
+        setTimeout(() => this.scrollToBottom(), 0);
       },
       error: () => {
         // remove temp message and show error
@@ -85,5 +121,65 @@ export class MessageThreadComponent implements OnInit {
         this.sending.set(false);
       }
     });
+  }
+
+  private setGroup(groupId: number): void {
+    if (!groupId || groupId === this.groupId) {
+      return;
+    }
+
+    this.groupId = groupId;
+    this.error.set(null);
+    this.loading.set(true);
+    this.sending.set(false);
+    this.newMessage.set('');
+    this.loadMessages();
+  }
+
+  private scrollToBottom(): void {
+    try {
+      const el = this.scrollContainer?.nativeElement;
+      if (!el) return;
+      el.scrollTop = el.scrollHeight;
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  isMine(m: MessageResponse): boolean {
+    return !!(this.currentUserId && m.senderId === this.currentUserId) || m.senderUsername === 'You';
+  }
+
+  formatTime(iso: string): string {
+    try {
+      const d = new Date(iso);
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    } catch (e) {
+      return iso;
+    }
+  }
+
+  nameColor(senderId: number | null | undefined): string {
+    const colors = ['#E06C75', '#98C379', '#E5C07B', '#61AFEF', '#C678DD', '#56B6C2'];
+    const idStr = String(senderId ?? '0');
+    let hash = 0;
+    for (let i = 0; i < idStr.length; i++) {
+      hash = (hash * 31 + idStr.charCodeAt(i)) >>> 0;
+    }
+    return colors[hash % colors.length];
+  }
+
+  shouldShowSender(index: number, m: MessageResponse): boolean {
+    if (index === 0) return true;
+    const prev = this.messages()[index - 1];
+    return !!prev && prev.senderId !== m.senderId;
+  }
+
+  isFirstInGroup(index: number, m: MessageResponse): boolean {
+    return this.shouldShowSender(index, m);
+  }
+
+  gapFor(index: number, m: MessageResponse): number {
+    return this.shouldShowSender(index, m) ? 8 : 2;
   }
 }

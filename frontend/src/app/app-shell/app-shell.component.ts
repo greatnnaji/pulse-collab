@@ -100,6 +100,7 @@ export class AppShellComponent implements OnInit {
     this.selectedGroupId.set(groupId);
     this.groupAccessError.set(null);
     this.groupActionNotice.set(null);
+    this.router.navigate(['/app', 'groups', groupId, 'messages']);
   }
 
   toggleTheme(): void {
