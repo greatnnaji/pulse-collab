@@ -3,11 +3,12 @@
     <h4>Messages</h4>
   </header>
 
-  <div *ngIf="loading()" class="state">Loading messages...</div>
+  <div *ngIf="loading() && messages().length === 0" class="state">Loading messages...</div>
   <div *ngIf="error()" class="state error">{{ error() }}</div>
 
-  <div class="message-list" #scrollContainer *ngIf="!loading() && !error()">
-    <div *ngIf="messages().length === 0" class="empty-state">No messages yet</div>
+  <div class="message-list" #scrollContainer *ngIf="!error()">
+    <div *ngIf="loading() && messages().length > 0" class="loading-pill">Loading newer messages...</div>
+    <div *ngIf="!loading() && messages().length === 0" class="empty-state">No messages yet</div>
 
     <ng-container *ngFor="let m of messages(); let i = index">
       <div

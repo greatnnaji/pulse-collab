@@ -15,6 +15,16 @@
 
   .empty-state { color: #777; padding: 1rem 0; }
 
+  .loading-pill {
+    align-self: center;
+    margin-bottom: 8px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 12px;
+  }
+
   .message-row {
     display: flex;
     flex-direction: column;

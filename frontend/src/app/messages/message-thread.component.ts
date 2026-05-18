@@ -1,7 +1,8 @@
-import { Component, OnInit, signal, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
+import { AfterViewInit, Component, DestroyRef, ElementRef, OnInit, ViewChild, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MessageService } from './message.service';
 import { MessageResponse } from './message.models';
 import { AuthService } from '../auth/auth.service';
@@ -19,9 +20,11 @@ export class MessageThreadComponent implements OnInit, AfterViewInit {
   readonly error = signal<string | null>(null);
 
   private groupId = 0;
+  private loadVersion = 0;
   readonly newMessage = signal('');
   readonly sending = signal(false);
   private currentUserId: number | null = null;
+  private readonly destroyRef = inject(DestroyRef);
 
   @ViewChild('scrollContainer', { static: false }) scrollContainer?: ElementRef<HTMLDivElement>;
 
@@ -32,11 +35,14 @@ export class MessageThreadComponent implements OnInit, AfterViewInit {
   ) {}
 
   ngOnInit(): void {
-    const param = this.route.snapshot.paramMap.get('groupId');
-    this.groupId = param ? Number(param) : 0;
-    this.loadMessages();
-    const user = this.authService.currentUser();
-    this.currentUserId = user ? user.id : null;
+    this.currentUserId = this.authService.currentUser()?.id ?? null;
+
+    this.route.paramMap
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((params) => {
+        const nextGroupId = Number(params.get('groupId'));
+        this.setGroup(nextGroupId);
+      });
   }
 
   ngAfterViewInit(): void {
@@ -50,10 +56,15 @@ export class MessageThreadComponent implements OnInit, AfterViewInit {
       return;
     }
 
+    const requestVersion = ++this.loadVersion;
     this.loading.set(true);
     this.error.set(null);
     this.messageService.getMessages(this.groupId, 0, 50).subscribe({
       next: (page) => {
+        if (requestVersion !== this.loadVersion) {
+          return;
+        }
+
         // normalize ordering (oldest -> newest)
         const sorted = page.content.slice().sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
         this.messages.set(sorted);
@@ -61,6 +72,10 @@ export class MessageThreadComponent implements OnInit, AfterViewInit {
         setTimeout(() => this.scrollToBottom(), 0);
       },
       error: () => {
+        if (requestVersion !== this.loadVersion) {
+          return;
+        }
+
         this.error.set('Unable to load messages');
         this.loading.set(false);
       }
@@ -106,6 +121,19 @@ export class MessageThreadComponent implements OnInit, AfterViewInit {
         this.sending.set(false);
       }
     });
+  }
+
+  private setGroup(groupId: number): void {
+    if (!groupId || groupId === this.groupId) {
+      return;
+    }
+
+    this.groupId = groupId;
+    this.error.set(null);
+    this.loading.set(true);
+    this.sending.set(false);
+    this.newMessage.set('');
+    this.loadMessages();
   }
 
   private scrollToBottom(): void {
