@@ -4,6 +4,9 @@
 
 A WhatsApp-style team collaboration app with real-time messaging, built with Angular, Spring Boot, WebSockets, and PostgreSQL.
 
+## Architecture
+![Architecture diagram](docs/architecture.svg)
+
 ## Features
 - Real-time messaging via WebSockets
 - Channel-based team workspaces
