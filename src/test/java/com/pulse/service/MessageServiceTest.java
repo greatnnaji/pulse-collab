@@ -11,7 +11,6 @@ import com.pulse.repository.MessageRepository;
 import com.pulse.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -20,6 +19,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
@@ -47,6 +47,9 @@ class MessageServiceTest {
 
     @Mock
     private GroupMemberRepository groupMemberRepository;
+
+        @Mock
+        private SimpMessagingTemplate messagingTemplate;
 
     @InjectMocks
     private MessageService messageService;
@@ -82,6 +85,7 @@ class MessageServiceTest {
         assertEquals(currentUserId, response.getSenderId());
         assertEquals(groupId, response.getGroupId());
         verify(messageRepository).save(any(Message.class));
+                verify(messagingTemplate).convertAndSend(eq("/topic/groups/" + groupId), any(MessageResponse.class));
     }
 
     @Test

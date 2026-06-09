@@ -1,25 +1,24 @@
 package com.pulse.service;
 
+import com.pulse.dto.CreateMessageRequest;
+import com.pulse.dto.MessageResponse;
+import com.pulse.entity.Group;
+import com.pulse.entity.Message;
+import com.pulse.entity.User;
+import com.pulse.repository.GroupMemberRepository;
+import com.pulse.repository.GroupRepository;
+import com.pulse.repository.MessageRepository;
+import com.pulse.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.transaction.annotation.Transactional;
-
-import com.pulse.repository.MessageRepository;
-import com.pulse.repository.UserRepository;
-import com.pulse.repository.GroupRepository;
-import com.pulse.repository.GroupMemberRepository;
-
-import lombok.RequiredArgsConstructor;
-import com.pulse.dto.CreateMessageRequest;
-import com.pulse.dto.MessageResponse;
-import com.pulse.entity.Message;
-import com.pulse.entity.User;
-import com.pulse.entity.Group;
+import org.springframework.web.server.ResponseStatusException;
 
 
 @Service
@@ -30,6 +29,7 @@ public class MessageService {
     private final UserRepository userRepository;
     private final GroupRepository groupRepository;
     private final GroupMemberRepository groupMemberRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Transactional
     public MessageResponse createMessage(CreateMessageRequest request, Long currentUserId, Long groupId) {
@@ -50,8 +50,10 @@ public class MessageService {
                 .build();
 
         Message savedMessage = messageRepository.save(message);
-
-        return MessageResponse.from(savedMessage);
+        MessageResponse response = MessageResponse.from(savedMessage);
+        // Transform to JSON and wrap in a standard WebSocket message format before broadcasting
+        messagingTemplate.convertAndSend("/topic/groups/" + groupId, response);
+        return response;
     }
 
     @Transactional(readOnly = true)
