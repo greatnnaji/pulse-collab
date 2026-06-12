@@ -1,6 +1,6 @@
 import { Injectable, OnDestroy } from '@angular/core';
 import { BehaviorSubject, Subject } from 'rxjs';
-import { Client, Stomp, StompSubscription } from '@stomp/stompjs';
+import { Client,StompSubscription } from '@stomp/stompjs';
 import { AuthService } from '../auth/auth.service';
 
 export type ConnectionState = 'connecting' | 'connected' | 'disconnected';
@@ -11,8 +11,9 @@ export type ConnectionState = 'connecting' | 'connected' | 'disconnected';
 export class WebSocketService implements OnDestroy {
   private client: Client | null = null;
   private reconnectAttempt = 0;
-  private reconnectTimeouts: NodeJS.Timeout[] = [];
+  private reconnectTimeouts: Array<ReturnType<typeof setTimeout>> = [];
   private activeSubscriptions = new Map<string, StompSubscription>();
+  private desiredDestinations = new Set<string>();
 
   readonly connectionState$ = new BehaviorSubject<ConnectionState>('disconnected');
   readonly messages$ = new Subject<any>();
@@ -62,6 +63,7 @@ export class WebSocketService implements OnDestroy {
       this.client.onConnect = () => {
         this.reconnectAttempt = 0;
         this.connectionState$.next('connected');
+        this.restoreSubscriptions();
         resolve();
       };
 
@@ -105,6 +107,7 @@ export class WebSocketService implements OnDestroy {
 
   subscribeToGroupMessages(groupId: number): void {
     const destination = `/topic/groups/${groupId}`;
+    this.desiredDestinations.add(destination);
 
     // Unsubscribe from old subscription for this group if it exists
     const existingKey = destination;
@@ -135,6 +138,7 @@ export class WebSocketService implements OnDestroy {
 
   unsubscribeFromGroupMessages(groupId: number): void {
     const destination = `/topic/groups/${groupId}`;
+    this.desiredDestinations.delete(destination);
     const subscription = this.activeSubscriptions.get(destination);
     if (subscription) {
       try {
@@ -165,6 +169,29 @@ export class WebSocketService implements OnDestroy {
   private clearReconnectTimeouts(): void {
     this.reconnectTimeouts.forEach(clearTimeout);
     this.reconnectTimeouts = [];
+  }
+
+  private restoreSubscriptions(): void {
+    if (!this.client || !this.client.connected) {
+      return;
+    }
+
+    for (const destination of this.desiredDestinations) {
+      if (this.activeSubscriptions.has(destination)) {
+        continue;
+      }
+
+      const subscription = this.client.subscribe(destination, (message) => {
+        try {
+          const payload = JSON.parse(message.body);
+          this.messages$.next(payload);
+        } catch (err) {
+          console.error('Failed to parse message:', err);
+        }
+      });
+
+      this.activeSubscriptions.set(destination, subscription);
+    }
   }
 
   ngOnDestroy(): void {
