@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, DestroyRef, ElementRef, OnInit, ViewChild, inject, signal } from '@angular/core';
+import { AfterViewInit, Component, DestroyRef, ElementRef, OnInit, ViewChild, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
@@ -6,6 +6,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MessageService } from './message.service';
 import { MessageResponse } from './message.models';
 import { AuthService } from '../auth/auth.service';
+import { WebSocketService } from './websocket.service';
 
 @Component({
   selector: 'app-message-thread',
@@ -18,6 +19,8 @@ export class MessageThreadComponent implements OnInit, AfterViewInit {
   readonly messages = signal<MessageResponse[]>([]);
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
+  readonly connectionState = signal<'connecting' | 'connected' | 'disconnected'>('disconnected');
+  readonly isConnecting = computed(() => this.connectionState() !== 'connected');
 
   private groupId = 0;
   private loadVersion = 0;
@@ -31,12 +34,59 @@ export class MessageThreadComponent implements OnInit, AfterViewInit {
   constructor(
     private readonly route: ActivatedRoute,
     private readonly messageService: MessageService,
-    private readonly authService: AuthService
+    private readonly authService: AuthService,
+    private readonly wsService: WebSocketService
   ) {}
 
   ngOnInit(): void {
     this.currentUserId = this.authService.currentUser()?.id ?? null;
 
+    // Monitor WebSocket connection state
+    this.wsService.connectionState$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((state) => {
+        this.connectionState.set(state);
+      });
+
+    // Listen for live messages from WebSocket
+    this.wsService.messages$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((msg: MessageResponse) => {
+        // Replace the optimistic temp row for our own message if the server echo arrives first.
+        if (msg.groupId === this.groupId && msg.id > 0) {
+          this.messages.update((list) => {
+            const hasTempRow = list.some((m) => m.id < 0 && m.senderId === this.currentUserId && m.content === msg.content);
+
+            if (hasTempRow) {
+              return list.map((m) => {
+                if (m.id < 0 && m.senderId === this.currentUserId && m.content === msg.content) {
+                  return msg;
+                }
+
+                return m;
+              });
+            }
+
+            // Avoid duplicates by checking if message already exists
+            const exists = list.some((m) => m.id === msg.id);
+            if (exists) {
+              return list;
+            }
+            const sorted = [...list, msg].sort((a, b) => 
+              new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+            );
+            return sorted;
+          });
+          setTimeout(() => this.scrollToBottom(), 0);
+        }
+      });
+
+    // Connect to WebSocket on init
+    this.wsService.connect().catch((err) => {
+      console.error('Failed to connect to WebSocket:', err);
+    });
+
+    // Handle group route changes
     this.route.paramMap
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((params) => {
@@ -70,6 +120,11 @@ export class MessageThreadComponent implements OnInit, AfterViewInit {
         this.messages.set(sorted);
         this.loading.set(false);
         setTimeout(() => this.scrollToBottom(), 0);
+
+        // Subscribe to live updates after loading history
+        if (this.wsService.connectionState$.value === 'connected') {
+          this.wsService.subscribeToGroupMessages(this.groupId);
+        }
       },
       error: () => {
         if (requestVersion !== this.loadVersion) {
@@ -128,12 +183,22 @@ export class MessageThreadComponent implements OnInit, AfterViewInit {
       return;
     }
 
+    // Unsubscribe from old group
+    if (this.groupId > 0) {
+      this.wsService.unsubscribeFromGroupMessages(this.groupId);
+    }
+
     this.groupId = groupId;
     this.error.set(null);
     this.loading.set(true);
     this.sending.set(false);
     this.newMessage.set('');
     this.loadMessages();
+
+    // Subscribe to new group on WebSocket
+    if (this.wsService.connectionState$.value === 'connected') {
+      this.wsService.subscribeToGroupMessages(groupId);
+    }
   }
 
   private scrollToBottom(): void {
