@@ -19,11 +19,15 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 @Service
 @RequiredArgsConstructor
 public class MessageService {
+
+    private static final Logger log = LoggerFactory.getLogger(MessageService.class);
 
     private final MessageRepository messageRepository;
     private final UserRepository userRepository;
@@ -52,6 +56,7 @@ public class MessageService {
         Message savedMessage = messageRepository.save(message);
         MessageResponse response = MessageResponse.from(savedMessage);
         // Transform to JSON and wrap in a standard WebSocket message format before broadcasting
+        log.debug("Broadcasting WebSocket message. groupId={}, messageId={}", groupId, savedMessage.getId());
         messagingTemplate.convertAndSend("/topic/groups/" + groupId, response);
         return response;
     }

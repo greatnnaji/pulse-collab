@@ -28,6 +28,11 @@ server:
     include-message: always
     include-binding-errors: always
 
+logging:
+  level:
+    com.pulse.config.websocket.WebSocketAuthChannelInterceptor: DEBUG
+    com.pulse.service.MessageService: DEBUG
+
 # JWT Configuration
 jwt:
   secret: ${JWT_SECRET:dev-secret-key-change-in-production-123456}

@@ -1,6 +1,6 @@
 import { Injectable, OnDestroy } from '@angular/core';
 import { BehaviorSubject, Subject } from 'rxjs';
-import { Client,StompSubscription } from '@stomp/stompjs';
+import { Client, StompSubscription } from '@stomp/stompjs';
 import { AuthService } from '../auth/auth.service';
 
 export type ConnectionState = 'connecting' | 'connected' | 'disconnected';
@@ -14,6 +14,7 @@ export class WebSocketService implements OnDestroy {
   private reconnectTimeouts: Array<ReturnType<typeof setTimeout>> = [];
   private activeSubscriptions = new Map<string, StompSubscription>();
   private desiredDestinations = new Set<string>();
+  private currentToken: string | null = null;
 
   readonly connectionState$ = new BehaviorSubject<ConnectionState>('disconnected');
   readonly messages$ = new Subject<any>();
@@ -49,6 +50,12 @@ export class WebSocketService implements OnDestroy {
         return;
       }
 
+      this.currentToken = token;
+      console.debug('[WebSocketService] connection attempt', {
+        attempt: this.reconnectAttempt + 1,
+        token: this.maskToken(token)
+      });
+
       this.connectionState$.next('connecting');
 
       if (!this.client) {
@@ -61,6 +68,9 @@ export class WebSocketService implements OnDestroy {
       this.client.heartbeatOutgoing = 4000;
 
       this.client.onConnect = () => {
+        console.debug('[WebSocketService] onConnect', {
+          destinationCount: this.desiredDestinations.size
+        });
         this.reconnectAttempt = 0;
         this.connectionState$.next('connected');
         this.restoreSubscriptions();
@@ -68,12 +78,30 @@ export class WebSocketService implements OnDestroy {
       };
 
       this.client.onDisconnect = () => {
+        console.debug('[WebSocketService] onDisconnect');
         this.connectionState$.next('disconnected');
         this.scheduleReconnect();
       };
 
+      this.client.onWebSocketClose = (event) => {
+        console.debug('[WebSocketService] onWebSocketClose', {
+          code: event.code,
+          reason: event.reason,
+          wasClean: event.wasClean
+        });
+      };
+
+      this.client.onWebSocketError = (event) => {
+        console.error('[WebSocketService] onWebSocketError', event);
+      };
+
       this.client.onStompError = (error) => {
-        console.error('STOMP error:', error);
+        console.error('[WebSocketService] onStompError', {
+          command: error.command,
+          message: error.headers['message'],
+          body: error.body,
+          headers: error.headers
+        });
         this.connectionState$.next('disconnected');
         this.scheduleReconnect();
         reject(error);
@@ -124,8 +152,14 @@ export class WebSocketService implements OnDestroy {
       return;
     }
 
+    console.debug('[WebSocketService] subscribe', { destination });
+
     const subscription = this.client.subscribe(destination, (message) => {
       try {
+        console.debug('[WebSocketService] raw message body', {
+          destination,
+          body: message.body
+        });
         const payload = JSON.parse(message.body);
         this.messages$.next(payload);
       } catch (err) {
@@ -141,6 +175,7 @@ export class WebSocketService implements OnDestroy {
     this.desiredDestinations.delete(destination);
     const subscription = this.activeSubscriptions.get(destination);
     if (subscription) {
+      console.debug('[WebSocketService] unsubscribe', { destination });
       try {
         subscription.unsubscribe();
       } catch (e) {
@@ -155,6 +190,13 @@ export class WebSocketService implements OnDestroy {
 
     const delays = [1000, 2000, 4000, 8000, 8000, 8000]; // cap at 8s
     const delay = delays[Math.min(this.reconnectAttempt, delays.length - 1)];
+    const nextAttempt = this.reconnectAttempt + 1;
+
+    console.debug('[WebSocketService] reconnect scheduled', {
+      attempt: nextAttempt,
+      delay,
+      token: this.maskToken(this.currentToken)
+    });
 
     const timeout = setTimeout(() => {
       this.reconnectAttempt++;
@@ -181,8 +223,13 @@ export class WebSocketService implements OnDestroy {
         continue;
       }
 
+      console.debug('[WebSocketService] restoring subscription', { destination });
       const subscription = this.client.subscribe(destination, (message) => {
         try {
+          console.debug('[WebSocketService] raw message body', {
+            destination,
+            body: message.body
+          });
           const payload = JSON.parse(message.body);
           this.messages$.next(payload);
         } catch (err) {
@@ -196,5 +243,17 @@ export class WebSocketService implements OnDestroy {
 
   ngOnDestroy(): void {
     this.disconnect();
+  }
+
+  private maskToken(token: string | null): string {
+    if (!token) {
+      return '<missing>';
+    }
+
+    if (token.length <= 12) {
+      return `${token.slice(0, 4)}...${token.slice(-4)}`;
+    }
+
+    return `${token.slice(0, 6)}...${token.slice(-4)}`;
   }
 }

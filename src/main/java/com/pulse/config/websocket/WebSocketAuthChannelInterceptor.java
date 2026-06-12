@@ -13,6 +13,8 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.Map;
@@ -23,6 +25,7 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
 
+    private static final Logger log = LoggerFactory.getLogger(WebSocketAuthChannelInterceptor.class);
     private static final Pattern GROUP_TOPIC_PATTERN = Pattern.compile("^/topic/groups/(\\d+)$");
 
     private final JwtService jwtService;
@@ -58,12 +61,16 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
         String username = jwtService.extractUsername(token);
         Long userId = jwtService.extractUserId(token);
         if (username == null || userId == null || !jwtService.validateToken(token, username)) {
+            log.debug("WebSocket CONNECT token validation failed. username={}, userId={}, hasToken={}",
+                    username, userId, token != null && !token.isBlank());
             throw new AccessDeniedException("Invalid WebSocket token");
         }
 
         Authentication authentication = new UsernamePasswordAuthenticationToken(userId, null, Collections.emptyList());
         accessor.setUser(authentication);
         sessionAttributes.put("ws_user_id", userId);
+        log.debug("WebSocket CONNECT token validated. username={}, userId={}, principal={}",
+                username, userId, authentication.getName());
     }
 
     private void authorizeSubscription(StompHeaderAccessor accessor) {
@@ -79,7 +86,11 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
         Long groupId = Long.valueOf(matcher.group(1));
         Long userId = resolveUserId(accessor);
 
-        if (!groupService.isMember(groupId, userId)) {
+        boolean member = groupService.isMember(groupId, userId);
+        log.debug("WebSocket SUBSCRIBE authorization. destination={}, groupId={}, userId={}, member={}",
+                accessor.getDestination(), groupId, userId, member);
+
+        if (!member) {
             throw new AccessDeniedException("Not a member of this group");
         }
     }
@@ -92,6 +103,7 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
         String principalName = accessor.getUser().getName();
         if (principalName != null && !principalName.isBlank()) {
             try {
+                log.debug("Resolved WebSocket principal from session user: {}", principalName);
                 return Long.parseLong(principalName);
             } catch (NumberFormatException ignored) {
                 throw new AccessDeniedException("Unauthorized WebSocket subscription");
