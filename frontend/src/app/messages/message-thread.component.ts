@@ -52,9 +52,21 @@ export class MessageThreadComponent implements OnInit, AfterViewInit {
     this.wsService.messages$
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((msg: MessageResponse) => {
-        // Only append if the message is for the current group and not our own temporary message
+        // Replace the optimistic temp row for our own message if the server echo arrives first.
         if (msg.groupId === this.groupId && msg.id > 0) {
           this.messages.update((list) => {
+            const hasTempRow = list.some((m) => m.id < 0 && m.senderId === this.currentUserId && m.content === msg.content);
+
+            if (hasTempRow) {
+              return list.map((m) => {
+                if (m.id < 0 && m.senderId === this.currentUserId && m.content === msg.content) {
+                  return msg;
+                }
+
+                return m;
+              });
+            }
+
             // Avoid duplicates by checking if message already exists
             const exists = list.some((m) => m.id === msg.id);
             if (exists) {
