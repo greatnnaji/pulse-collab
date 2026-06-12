@@ -1,6 +1,11 @@
 <section class="message-thread">
   <header class="thread-header">
-    <h4>Messages</h4>
+    <div class="header-content">
+      <h4>Messages</h4>
+      <div *ngIf="isConnecting()" class="connection-status">
+        {{ connectionState() === 'connecting' ? 'Connecting...' : 'Reconnecting...' }}
+      </div>
+    </div>
   </header>
 
   <div *ngIf="loading() && messages().length === 0" class="state">Loading messages...</div>
@@ -37,8 +42,9 @@
         [ngModel]="newMessage()"
         (ngModelChange)="newMessage.set($event)"
         autocomplete="off"
+        [disabled]="isConnecting()"
       />
-      <button type="submit" class="send-btn" [disabled]="sending() || newMessage().trim().length === 0">
+      <button type="submit" class="send-btn" [disabled]="isConnecting() || sending() || newMessage().trim().length === 0">
         <span class="send-icon">➤</span>
       </button>
     </div>
