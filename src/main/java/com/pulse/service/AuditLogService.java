@@ -14,7 +14,7 @@ public class AuditLogService {
 
     private final AuditLogRepository auditLogRepository;
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional
     public void record(AuditLogEventType eventType,
                        Long actorUserId,
                        String actorIdentifier,
@@ -22,6 +22,27 @@ public class AuditLogService {
                        Long targetId,
                        String targetName,
                        String details) {
+        saveAuditLog(eventType, actorUserId, actorIdentifier, targetType, targetId, targetName, details);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void recordIndependent(AuditLogEventType eventType,
+                                  Long actorUserId,
+                                  String actorIdentifier,
+                                  String targetType,
+                                  Long targetId,
+                                  String targetName,
+                                  String details) {
+        saveAuditLog(eventType, actorUserId, actorIdentifier, targetType, targetId, targetName, details);
+    }
+
+    private void saveAuditLog(AuditLogEventType eventType,
+                              Long actorUserId,
+                              String actorIdentifier,
+                              String targetType,
+                              Long targetId,
+                              String targetName,
+                              String details) {
         AuditLog auditLog = AuditLog.builder()
                 .eventType(eventType)
                 .actorUserId(actorUserId)
