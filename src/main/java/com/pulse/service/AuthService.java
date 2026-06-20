@@ -72,7 +72,7 @@ public class AuthService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials"));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            auditLogService.record(
+            auditLogService.recordIndependent(
                     AuditLogEventType.USER_LOGIN_FAILED,
                     null,
                     request.getUsernameOrEmail(),

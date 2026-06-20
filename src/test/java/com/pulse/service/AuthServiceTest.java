@@ -81,7 +81,7 @@ class AuthServiceTest {
                 () -> authService.login(request));
 
         assertEquals("Invalid credentials", exception.getReason());
-        verify(auditLogService).record(any(), any(), any(), any(), any(), any(), any());
+        verify(auditLogService).recordIndependent(any(), any(), any(), any(), any(), any(), any());
         verify(jwtService, never()).generateToken(any(), any());
     }
 }
