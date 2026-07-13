@@ -40,6 +40,40 @@
       </form>
     }
 
+    @if (invites().length > 0) {
+      <section class="invites-section" aria-label="Pending invites">
+        <p class="section-title">Pending Invites</p>
+        <ul class="invite-list">
+          @for (invite of invites(); track invite.id) {
+            <li class="invite-item">
+              <span class="invite-group-name">{{ invite.groupName }}</span>
+              <div class="invite-actions">
+                <button
+                  type="button"
+                  class="invite-action accept"
+                  (click)="acceptInvite(invite)"
+                  [disabled]="respondingInviteId() === invite.id"
+                >
+                  {{ respondingInviteId() === invite.id ? '...' : 'Accept' }}
+                </button>
+                <button
+                  type="button"
+                  class="invite-action decline"
+                  (click)="declineInvite(invite)"
+                  [disabled]="respondingInviteId() === invite.id"
+                >
+                  Decline
+                </button>
+              </div>
+            </li>
+          }
+        </ul>
+        @if (inviteActionError()) {
+          <p class="error inline-feedback">{{ inviteActionError() }}</p>
+        }
+      </section>
+    }
+
     <section class="group-list-wrap" aria-label="Group list">
       <p class="section-title">Your Groups</p>
 

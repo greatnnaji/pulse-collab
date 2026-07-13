@@ -259,11 +259,7 @@ export class MembersComponent implements OnChanges {
       .addMemberToGroup(this.selectedGroup.id, payload)
       .pipe(finalize(() => this.isAddingMember.set(false)))
       .subscribe({
-        next: (newMember) => {
-          this.members.update((members) => [...members, newMember]);
-          if (this.createdMemberCount) {
-            this.createdMemberCount(this.members().length);
-          }
+        next: () => {
           this.addMemberSuccess.set(true);
           setTimeout(() => {
             this.cancelAddMember();
@@ -273,11 +269,15 @@ export class MembersComponent implements OnChanges {
           if (error.status === 404) {
             this.addMemberError.set('User with this email not found.');
           } else if (error.status === 409) {
-            this.addMemberError.set('User is already a member of this group.');
+            this.addMemberError.set(
+              error.error?.message?.includes('already been invited')
+                ? 'This user has already been invited.'
+                : 'User is already a member of this group.'
+            );
           } else if (error.status === 403) {
-            this.addMemberError.set('Only group owner or admin can add members.');
+            this.addMemberError.set('Only group owner or admin can invite members.');
           } else {
-            this.addMemberError.set('Could not add member. Please try again.');
+            this.addMemberError.set('Could not send invite. Please try again.');
           }
         }
       });

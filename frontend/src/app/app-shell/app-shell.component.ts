@@ -5,8 +5,9 @@ import { Router } from '@angular/router';
 import { finalize, forkJoin, map, switchMap, take } from 'rxjs';
 
 import { AuthService } from '../auth/auth.service';
-import { GroupResponse } from '../groups/group.models';
+import { GroupResponse, InviteResponse } from '../groups/group.models';
 import { GroupService } from '../groups/group.service';
+import { InviteService } from '../groups/invite.service';
 import { MembersComponent } from '../groups/members/members.component';
 
 @Component({
@@ -26,6 +27,10 @@ export class AppShellComponent implements OnInit {
   readonly selectedGroupId = signal<number | null>(null);
   readonly groupAccessError = signal<string | null>(null);
   readonly groupActionNotice = signal<string | null>(null);
+
+  readonly invites = signal<InviteResponse[]>([]);
+  readonly inviteActionError = signal<string | null>(null);
+  readonly respondingInviteId = signal<number | null>(null);
 
   readonly darkMode = signal(false);
 
@@ -65,6 +70,7 @@ export class AppShellComponent implements OnInit {
   constructor(
     private readonly authService: AuthService,
     private readonly groupService: GroupService,
+    private readonly inviteService: InviteService,
     private readonly formBuilder: FormBuilder,
     private readonly router: Router
   ) {}
@@ -82,16 +88,59 @@ export class AppShellComponent implements OnInit {
 
     forkJoin({
       user: this.authService.getCurrentUser(),
-      groups: this.groupService.getGroups()
+      groups: this.groupService.getGroups(),
+      invites: this.inviteService.getMyInvites()
     })
       .pipe(finalize(() => this.isLoading.set(false)))
       .subscribe({
-        next: ({ groups }) => {
+        next: ({ groups, invites }) => {
           this.groups.set(groups);
+          this.invites.set(invites);
           this.selectedGroupId.set(null);
         },
         error: () => {
           this.loadingError.set('Unable to load your dashboard. Please refresh and try again.');
+        }
+      });
+  }
+
+  acceptInvite(invite: InviteResponse): void {
+    this.inviteActionError.set(null);
+    this.respondingInviteId.set(invite.id);
+
+    this.inviteService
+      .acceptInvite(invite.id)
+      .pipe(finalize(() => this.respondingInviteId.set(null)))
+      .subscribe({
+        next: () => {
+          this.invites.update((invites) => invites.filter((candidate) => candidate.id !== invite.id));
+          this.groupActionNotice.set(`You joined ${invite.groupName}.`);
+          this.groupService
+            .getGroups()
+            .pipe(take(1))
+            .subscribe({
+              next: (groups) => this.groups.set(groups)
+            });
+        },
+        error: () => {
+          this.inviteActionError.set('Could not accept invite. Please try again.');
+        }
+      });
+  }
+
+  declineInvite(invite: InviteResponse): void {
+    this.inviteActionError.set(null);
+    this.respondingInviteId.set(invite.id);
+
+    this.inviteService
+      .declineInvite(invite.id)
+      .pipe(finalize(() => this.respondingInviteId.set(null)))
+      .subscribe({
+        next: () => {
+          this.invites.update((invites) => invites.filter((candidate) => candidate.id !== invite.id));
+        },
+        error: () => {
+          this.inviteActionError.set('Could not decline invite. Please try again.');
         }
       });
   }

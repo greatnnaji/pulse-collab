@@ -30,3 +30,11 @@ export interface MemberResponse {
 export interface AddMemberRequest {
   email: string;
 }
+
+export interface InviteResponse {
+  id: number;
+  groupId: number;
+  groupName: string;
+  invitedBy: number;
+  invitedAt: string;
+}
