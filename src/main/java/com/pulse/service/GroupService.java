@@ -3,11 +3,14 @@ package com.pulse.service;
 import com.pulse.dto.AddMemberRequest;
 import com.pulse.dto.CreateGroupRequest;
 import com.pulse.dto.GroupResponse;
+import com.pulse.dto.InviteResponse;
 import com.pulse.dto.MemberResponse;
 import com.pulse.entity.AuditLogEventType;
 import com.pulse.entity.Group;
+import com.pulse.entity.GroupInvite;
 import com.pulse.entity.GroupMember;
 import com.pulse.entity.User;
+import com.pulse.repository.GroupInviteRepository;
 import com.pulse.repository.GroupMemberRepository;
 import com.pulse.repository.GroupRepository;
 import com.pulse.repository.UserRepository;
@@ -25,6 +28,7 @@ public class GroupService {
 
     private final GroupRepository groupRepository;
     private final GroupMemberRepository groupMemberRepository;
+    private final GroupInviteRepository groupInviteRepository;
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
 
@@ -100,42 +104,96 @@ public class GroupService {
     }
 
     @Transactional
-    public MemberResponse addMemberToGroup(Long groupId, AddMemberRequest request, Long currentUserId) {
+    public InviteResponse inviteMemberToGroup(Long groupId, AddMemberRequest request, Long currentUserId) {
         // Verify group exists
         Group group = getExistingGroup(groupId);
 
         GroupMember actingMembership = getExistingMembership(groupId, currentUserId);
         if (!canManageMembers(actingMembership.getRole())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only group owner or admin can add members");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only group owner or admin can invite members");
         }
 
         // Find user by email
-        User userToAdd = userRepository.findByEmail(request.getEmail())
+        User userToInvite = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User with email not found"));
 
         // Check if user is already a member
-        if (groupMemberRepository.existsByGroupIdAndUserId(groupId, userToAdd.getId())) {
+        if (groupMemberRepository.existsByGroupIdAndUserId(groupId, userToInvite.getId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "User is already a member of this group");
         }
 
-        // Add user to group as MEMBER
-        GroupMember newMember = GroupMember.builder()
+        // Check if user already has a pending invite
+        if (groupInviteRepository.existsByGroupIdAndInvitedUserId(groupId, userToInvite.getId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "User has already been invited to this group");
+        }
+
+        GroupInvite invite = GroupInvite.builder()
                 .group(group)
-                .user(userToAdd)
-                .role(GroupMember.MemberRole.MEMBER)
+                .invitedUser(userToInvite)
+                .invitedBy(currentUserId)
                 .build();
 
-        GroupMember savedMember = groupMemberRepository.save(newMember);
+        GroupInvite savedInvite = groupInviteRepository.save(invite);
         auditLogService.record(
-            AuditLogEventType.GROUP_MEMBER_ADDED,
+            AuditLogEventType.GROUP_INVITE_CREATED,
             currentUserId,
             actingMembership.getUser().getUsername(),
             "GROUP",
             groupId,
             group.getName(),
-            "Added user " + userToAdd.getId()
+            "Invited user " + userToInvite.getId()
         );
+        return InviteResponse.from(savedInvite);
+    }
+
+    @Transactional(readOnly = true)
+    public List<InviteResponse> getMyInvites(Long currentUserId) {
+        return groupInviteRepository.findByInvitedUserIdWithGroup(currentUserId).stream()
+                .map(InviteResponse::from)
+                .toList();
+    }
+
+    @Transactional
+    public MemberResponse acceptInvite(Long inviteId, Long currentUserId) {
+        GroupInvite invite = getExistingInvite(inviteId, currentUserId);
+
+        GroupMember newMember = GroupMember.builder()
+                .group(invite.getGroup())
+                .user(invite.getInvitedUser())
+                .role(GroupMember.MemberRole.MEMBER)
+                .build();
+        GroupMember savedMember = groupMemberRepository.save(newMember);
+
+        groupInviteRepository.delete(invite);
+
+        auditLogService.record(
+            AuditLogEventType.GROUP_INVITE_ACCEPTED,
+            currentUserId,
+            invite.getInvitedUser().getUsername(),
+            "GROUP",
+            invite.getGroup().getId(),
+            invite.getGroup().getName(),
+            "User accepted invite " + inviteId
+        );
+
         return MemberResponse.from(savedMember);
+    }
+
+    @Transactional
+    public void declineInvite(Long inviteId, Long currentUserId) {
+        GroupInvite invite = getExistingInvite(inviteId, currentUserId);
+
+        groupInviteRepository.delete(invite);
+
+        auditLogService.record(
+            AuditLogEventType.GROUP_INVITE_DECLINED,
+            currentUserId,
+            invite.getInvitedUser().getUsername(),
+            "GROUP",
+            invite.getGroup().getId(),
+            invite.getGroup().getName(),
+            "User declined invite " + inviteId
+        );
     }
 
     @Transactional(readOnly = true)
@@ -204,6 +262,11 @@ public class GroupService {
     private GroupMember getExistingMembership(Long groupId, Long userId) {
         return groupMemberRepository.findByGroupIdAndUserId(groupId, userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Not a member of this group"));
+    }
+
+    private GroupInvite getExistingInvite(Long inviteId, Long currentUserId) {
+        return groupInviteRepository.findByIdAndInvitedUserId(inviteId, currentUserId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Invite not found"));
     }
 
     private boolean canManageMembers(GroupMember.MemberRole role) {

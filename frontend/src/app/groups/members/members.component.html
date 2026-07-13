@@ -2,7 +2,7 @@
   <header class="members-header">
     <h4>Members ({{ members().length }})</h4>
     @if (canManageMembers()) {
-      <button type="button" class="add-member-btn" (click)="openAddMemberForm()">+ Add Member</button>
+      <button type="button" class="add-member-btn" (click)="openAddMemberForm()">+ Invite Member</button>
     }
   </header>
 
@@ -78,7 +78,7 @@
   @if (showAddMemberForm()) {
     <div class="add-member-form-wrap">
       <form class="add-member-form" [formGroup]="addMemberForm" (ngSubmit)="submitAddMember()" novalidate>
-        <label for="memberEmail">Add member by email</label>
+        <label for="memberEmail">Invite by email</label>
         <input
           id="memberEmail"
           type="email"
@@ -95,12 +95,12 @@
         }
 
         @if (addMemberSuccess()) {
-          <p class="success">Member added successfully!</p>
+          <p class="success">Invite sent!</p>
         }
 
         <div class="form-actions">
           <button type="submit" class="submit" [disabled]="isAddingMember() || addMemberForm.invalid">
-            {{ isAddingMember() ? 'Adding...' : 'Add Member' }}
+            {{ isAddingMember() ? 'Sending...' : 'Send Invite' }}
           </button>
           <button type="button" class="secondary" (click)="cancelAddMember()" [disabled]="isAddingMember()">
             Cancel

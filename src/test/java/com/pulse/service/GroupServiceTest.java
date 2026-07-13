@@ -3,9 +3,12 @@ package com.pulse.service;
 import com.pulse.dto.AddMemberRequest;
 import com.pulse.dto.CreateGroupRequest;
 import com.pulse.dto.GroupResponse;
+import com.pulse.dto.InviteResponse;
 import com.pulse.entity.Group;
+import com.pulse.entity.GroupInvite;
 import com.pulse.entity.GroupMember;
 import com.pulse.entity.User;
+import com.pulse.repository.GroupInviteRepository;
 import com.pulse.repository.GroupMemberRepository;
 import com.pulse.repository.GroupRepository;
 import com.pulse.repository.UserRepository;
@@ -19,6 +22,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -37,6 +41,9 @@ class GroupServiceTest {
 
     @Mock
     private GroupMemberRepository groupMemberRepository;
+
+    @Mock
+    private GroupInviteRepository groupInviteRepository;
 
     @Mock
     private UserRepository userRepository;
@@ -150,12 +157,12 @@ class GroupServiceTest {
     }
 
     @Test
-    void addMemberToGroup_allowsAdmin() {
+    void inviteMemberToGroup_allowsAdmin() {
         Long groupId = 1L;
         Long currentUserId = 10L;
         Long targetUserId = 20L;
 
-        Group group = Group.builder().id(groupId).createdBy(999L).build();
+        Group group = Group.builder().id(groupId).name("Engineering").createdBy(999L).build();
         GroupMember actingMember = GroupMember.builder()
             .role(GroupMember.MemberRole.ADMIN)
             .user(User.builder().id(currentUserId).username("admin").build())
@@ -163,24 +170,246 @@ class GroupServiceTest {
         User targetUser = User.builder().id(targetUserId).email("new@pulse.com").build();
         AddMemberRequest request = AddMemberRequest.builder().email("new@pulse.com").build();
 
-        GroupMember savedMember = GroupMember.builder()
+        GroupInvite savedInvite = GroupInvite.builder()
                 .id(100L)
                 .group(group)
-                .user(targetUser)
-                .role(GroupMember.MemberRole.MEMBER)
-                .joinedAt(LocalDateTime.now())
+                .invitedUser(targetUser)
+                .invitedBy(currentUserId)
+                .invitedAt(LocalDateTime.now())
                 .build();
 
         when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
         when(groupMemberRepository.findByGroupIdAndUserId(groupId, currentUserId)).thenReturn(Optional.of(actingMember));
         when(userRepository.findByEmail(request.getEmail())).thenReturn(Optional.of(targetUser));
         when(groupMemberRepository.existsByGroupIdAndUserId(groupId, targetUserId)).thenReturn(false);
+        when(groupInviteRepository.existsByGroupIdAndInvitedUserId(groupId, targetUserId)).thenReturn(false);
+        when(groupInviteRepository.save(any(GroupInvite.class))).thenReturn(savedInvite);
+
+        InviteResponse response = groupService.inviteMemberToGroup(groupId, request, currentUserId);
+
+        ArgumentCaptor<GroupInvite> inviteCaptor = ArgumentCaptor.forClass(GroupInvite.class);
+        verify(groupInviteRepository).save(inviteCaptor.capture());
+        assertEquals(targetUser, inviteCaptor.getValue().getInvitedUser());
+        assertEquals(currentUserId, inviteCaptor.getValue().getInvitedBy());
+        assertEquals(group, inviteCaptor.getValue().getGroup());
+        assertEquals(groupId, response.getGroupId());
+
+        ArgumentCaptor<com.pulse.entity.AuditLogEventType> eventCaptor =
+                ArgumentCaptor.forClass(com.pulse.entity.AuditLogEventType.class);
+        verify(auditLogService).record(eventCaptor.capture(), any(), any(), any(), any(), any(), any());
+        assertEquals(com.pulse.entity.AuditLogEventType.GROUP_INVITE_CREATED, eventCaptor.getValue());
+        verify(groupMemberRepository, never()).save(any(GroupMember.class));
+    }
+
+    @Test
+    void inviteMemberToGroup_blocksNonOwnerOrAdmin() {
+        Long groupId = 1L;
+        Long currentUserId = 10L;
+
+        Group group = Group.builder().id(groupId).build();
+        GroupMember actingMember = GroupMember.builder().role(GroupMember.MemberRole.MEMBER).build();
+        AddMemberRequest request = AddMemberRequest.builder().email("new@pulse.com").build();
+
+        when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
+        when(groupMemberRepository.findByGroupIdAndUserId(groupId, currentUserId)).thenReturn(Optional.of(actingMember));
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> groupService.inviteMemberToGroup(groupId, request, currentUserId));
+
+        assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
+        assertEquals("Only group owner or admin can invite members", exception.getReason());
+        verify(groupInviteRepository, never()).save(any(GroupInvite.class));
+    }
+
+    @Test
+    void inviteMemberToGroup_returnsNotFoundWhenEmailUnknown() {
+        Long groupId = 1L;
+        Long currentUserId = 10L;
+
+        Group group = Group.builder().id(groupId).build();
+        GroupMember actingMember = GroupMember.builder().role(GroupMember.MemberRole.ADMIN).build();
+        AddMemberRequest request = AddMemberRequest.builder().email("nobody@pulse.com").build();
+
+        when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
+        when(groupMemberRepository.findByGroupIdAndUserId(groupId, currentUserId)).thenReturn(Optional.of(actingMember));
+        when(userRepository.findByEmail(request.getEmail())).thenReturn(Optional.empty());
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> groupService.inviteMemberToGroup(groupId, request, currentUserId));
+
+        assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
+        assertEquals("User with email not found", exception.getReason());
+        verify(groupInviteRepository, never()).save(any(GroupInvite.class));
+    }
+
+    @Test
+    void inviteMemberToGroup_blocksWhenAlreadyMember() {
+        Long groupId = 1L;
+        Long currentUserId = 10L;
+        Long targetUserId = 20L;
+
+        Group group = Group.builder().id(groupId).build();
+        GroupMember actingMember = GroupMember.builder().role(GroupMember.MemberRole.ADMIN).build();
+        User targetUser = User.builder().id(targetUserId).email("existing@pulse.com").build();
+        AddMemberRequest request = AddMemberRequest.builder().email("existing@pulse.com").build();
+
+        when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
+        when(groupMemberRepository.findByGroupIdAndUserId(groupId, currentUserId)).thenReturn(Optional.of(actingMember));
+        when(userRepository.findByEmail(request.getEmail())).thenReturn(Optional.of(targetUser));
+        when(groupMemberRepository.existsByGroupIdAndUserId(groupId, targetUserId)).thenReturn(true);
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> groupService.inviteMemberToGroup(groupId, request, currentUserId));
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
+        assertEquals("User is already a member of this group", exception.getReason());
+        verify(groupInviteRepository, never()).existsByGroupIdAndInvitedUserId(any(), any());
+        verify(groupInviteRepository, never()).save(any(GroupInvite.class));
+    }
+
+    @Test
+    void inviteMemberToGroup_blocksWhenAlreadyInvited() {
+        Long groupId = 1L;
+        Long currentUserId = 10L;
+        Long targetUserId = 20L;
+
+        Group group = Group.builder().id(groupId).build();
+        GroupMember actingMember = GroupMember.builder().role(GroupMember.MemberRole.ADMIN).build();
+        User targetUser = User.builder().id(targetUserId).email("pending@pulse.com").build();
+        AddMemberRequest request = AddMemberRequest.builder().email("pending@pulse.com").build();
+
+        when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
+        when(groupMemberRepository.findByGroupIdAndUserId(groupId, currentUserId)).thenReturn(Optional.of(actingMember));
+        when(userRepository.findByEmail(request.getEmail())).thenReturn(Optional.of(targetUser));
+        when(groupMemberRepository.existsByGroupIdAndUserId(groupId, targetUserId)).thenReturn(false);
+        when(groupInviteRepository.existsByGroupIdAndInvitedUserId(groupId, targetUserId)).thenReturn(true);
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> groupService.inviteMemberToGroup(groupId, request, currentUserId));
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
+        assertEquals("User has already been invited to this group", exception.getReason());
+        verify(groupInviteRepository, never()).save(any(GroupInvite.class));
+    }
+
+    @Test
+    void getMyInvites_mapsGroupAndInviteFields() {
+        Long currentUserId = 5L;
+
+        Group group = Group.builder().id(3L).name("Design").build();
+        GroupInvite invite = GroupInvite.builder()
+                .id(7L)
+                .group(group)
+                .invitedUser(User.builder().id(currentUserId).build())
+                .invitedBy(1L)
+                .invitedAt(LocalDateTime.now())
+                .build();
+
+        when(groupInviteRepository.findByInvitedUserIdWithGroup(currentUserId)).thenReturn(List.of(invite));
+
+        List<InviteResponse> responses = groupService.getMyInvites(currentUserId);
+
+        assertEquals(1, responses.size());
+        assertEquals(7L, responses.get(0).getId());
+        assertEquals(3L, responses.get(0).getGroupId());
+        assertEquals("Design", responses.get(0).getGroupName());
+        assertEquals(1L, responses.get(0).getInvitedBy());
+    }
+
+    @Test
+    void acceptInvite_createsMembershipAndDeletesInvite() {
+        Long inviteId = 7L;
+        Long currentUserId = 5L;
+
+        Group group = Group.builder().id(3L).name("Design").build();
+        User invitedUser = User.builder().id(currentUserId).username("invitee").build();
+        GroupInvite invite = GroupInvite.builder()
+                .id(inviteId)
+                .group(group)
+                .invitedUser(invitedUser)
+                .invitedBy(1L)
+                .build();
+        GroupMember savedMember = GroupMember.builder()
+                .id(50L)
+                .group(group)
+                .user(invitedUser)
+                .role(GroupMember.MemberRole.MEMBER)
+                .joinedAt(LocalDateTime.now())
+                .build();
+
+        when(groupInviteRepository.findByIdAndInvitedUserId(inviteId, currentUserId)).thenReturn(Optional.of(invite));
         when(groupMemberRepository.save(any(GroupMember.class))).thenReturn(savedMember);
 
-        groupService.addMemberToGroup(groupId, request, currentUserId);
+        groupService.acceptInvite(inviteId, currentUserId);
 
-        verify(groupMemberRepository).save(any(GroupMember.class));
-        verify(auditLogService).record(any(), any(), any(), any(), any(), any(), any());
+        ArgumentCaptor<GroupMember> memberCaptor = ArgumentCaptor.forClass(GroupMember.class);
+        verify(groupMemberRepository).save(memberCaptor.capture());
+        assertEquals(GroupMember.MemberRole.MEMBER, memberCaptor.getValue().getRole());
+        assertEquals(invitedUser, memberCaptor.getValue().getUser());
+        verify(groupInviteRepository).delete(invite);
+
+        ArgumentCaptor<com.pulse.entity.AuditLogEventType> eventCaptor =
+                ArgumentCaptor.forClass(com.pulse.entity.AuditLogEventType.class);
+        verify(auditLogService).record(eventCaptor.capture(), any(), any(), any(), any(), any(), any());
+        assertEquals(com.pulse.entity.AuditLogEventType.GROUP_INVITE_ACCEPTED, eventCaptor.getValue());
+    }
+
+    @Test
+    void acceptInvite_returnsNotFoundWhenInviteMissingOrNotOwned() {
+        Long inviteId = 7L;
+        Long currentUserId = 5L;
+
+        when(groupInviteRepository.findByIdAndInvitedUserId(inviteId, currentUserId)).thenReturn(Optional.empty());
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> groupService.acceptInvite(inviteId, currentUserId));
+
+        assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
+        assertEquals("Invite not found", exception.getReason());
+        verify(groupMemberRepository, never()).save(any(GroupMember.class));
+        verify(groupInviteRepository, never()).delete(any(GroupInvite.class));
+    }
+
+    @Test
+    void declineInvite_deletesInviteRow() {
+        Long inviteId = 7L;
+        Long currentUserId = 5L;
+
+        Group group = Group.builder().id(3L).name("Design").build();
+        User invitedUser = User.builder().id(currentUserId).username("invitee").build();
+        GroupInvite invite = GroupInvite.builder()
+                .id(inviteId)
+                .group(group)
+                .invitedUser(invitedUser)
+                .invitedBy(1L)
+                .build();
+
+        when(groupInviteRepository.findByIdAndInvitedUserId(inviteId, currentUserId)).thenReturn(Optional.of(invite));
+
+        groupService.declineInvite(inviteId, currentUserId);
+
+        verify(groupInviteRepository).delete(invite);
+        verify(groupMemberRepository, never()).save(any(GroupMember.class));
+
+        ArgumentCaptor<com.pulse.entity.AuditLogEventType> eventCaptor =
+                ArgumentCaptor.forClass(com.pulse.entity.AuditLogEventType.class);
+        verify(auditLogService).record(eventCaptor.capture(), any(), any(), any(), any(), any(), any());
+        assertEquals(com.pulse.entity.AuditLogEventType.GROUP_INVITE_DECLINED, eventCaptor.getValue());
+    }
+
+    @Test
+    void declineInvite_returnsNotFoundWhenInviteMissingOrNotOwned() {
+        Long inviteId = 7L;
+        Long currentUserId = 5L;
+
+        when(groupInviteRepository.findByIdAndInvitedUserId(inviteId, currentUserId)).thenReturn(Optional.empty());
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> groupService.declineInvite(inviteId, currentUserId));
+
+        assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
+        assertEquals("Invite not found", exception.getReason());
+        verify(groupInviteRepository, never()).delete(any(GroupInvite.class));
     }
 
     @Test

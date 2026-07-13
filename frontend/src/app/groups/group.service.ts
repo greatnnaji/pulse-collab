@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 import { environment } from '../../environments/environment';
-import { AddMemberRequest, CreateGroupRequest, GroupResponse, MemberResponse } from './group.models';
+import { AddMemberRequest, CreateGroupRequest, GroupResponse, InviteResponse, MemberResponse } from './group.models';
 
 @Injectable({
   providedIn: 'root'
@@ -25,8 +25,8 @@ export class GroupService {
     return this.http.get<MemberResponse[]>(`${this.baseUrl}/${groupId}/members`);
   }
 
-  addMemberToGroup(groupId: number, payload: AddMemberRequest): Observable<MemberResponse> {
-    return this.http.post<MemberResponse>(`${this.baseUrl}/${groupId}/members`, payload);
+  addMemberToGroup(groupId: number, payload: AddMemberRequest): Observable<InviteResponse> {
+    return this.http.post<InviteResponse>(`${this.baseUrl}/${groupId}/members`, payload);
   }
 
   removeMemberFromGroup(groupId: number, memberUserId: number): Observable<void> {

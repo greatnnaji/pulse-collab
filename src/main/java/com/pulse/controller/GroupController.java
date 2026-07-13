@@ -3,6 +3,7 @@ package com.pulse.controller;
 import com.pulse.dto.AddMemberRequest;
 import com.pulse.dto.CreateGroupRequest;
 import com.pulse.dto.GroupResponse;
+import com.pulse.dto.InviteResponse;
 import com.pulse.dto.MemberResponse;
 import com.pulse.service.GroupService;
 import jakarta.validation.Valid;
@@ -49,11 +50,11 @@ public class GroupController {
     }
 
     @PostMapping("/{groupId}/members")
-    public ResponseEntity<MemberResponse> addMemberToGroup(@PathVariable Long groupId,
-                                                           @Valid @RequestBody AddMemberRequest request) {
+    public ResponseEntity<InviteResponse> inviteMemberToGroup(@PathVariable Long groupId,
+                                                              @Valid @RequestBody AddMemberRequest request) {
         Long currentUserId = extractCurrentUserId();
-        MemberResponse added = groupService.addMemberToGroup(groupId, request, currentUserId);
-        return ResponseEntity.status(HttpStatus.CREATED).body(added);
+        InviteResponse invite = groupService.inviteMemberToGroup(groupId, request, currentUserId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(invite);
     }
 
     @DeleteMapping("/{groupId}/members/{memberUserId}")
