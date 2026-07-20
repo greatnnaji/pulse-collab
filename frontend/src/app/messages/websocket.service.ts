@@ -2,6 +2,7 @@ import { Injectable, OnDestroy } from '@angular/core';
 import { BehaviorSubject, Subject } from 'rxjs';
 import { Client, StompSubscription } from '@stomp/stompjs';
 import { AuthService } from '../auth/auth.service';
+import { environment } from '../../environments/environment';
 
 export type ConnectionState = 'connecting' | 'connected' | 'disconnected';
 
@@ -62,7 +63,7 @@ export class WebSocketService implements OnDestroy {
         this.client = new Client();
       }
 
-      this.client.brokerURL = `ws://localhost:8080/ws?token=${token}`;
+      this.client.brokerURL = `${environment.wsBaseUrl}/ws?token=${token}`;
       this.client.reconnectDelay = 0; // We handle reconnect manually
       this.client.heartbeatIncoming = 4000;
       this.client.heartbeatOutgoing = 4000;
