@@ -16,6 +16,4 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByUsername(String username);
 
     boolean existsByEmail(String email);
-
-    // TODO: Add custom queries for user search and presence management
 }

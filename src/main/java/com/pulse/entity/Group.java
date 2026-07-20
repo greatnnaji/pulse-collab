@@ -42,7 +42,6 @@ public class Group {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
-    // TODO: Add relationships to GroupMember and Messages when implementing those features
     @OneToMany(mappedBy = "group", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private Set<GroupMember> members = new HashSet<>();

@@ -21,6 +21,4 @@ public class CreateGroupRequest {
     private String description;
 
     private String avatarUrl;
-
-    // TODO: Add list of initial member IDs when implementing member management
 }

@@ -10,6 +10,4 @@ import java.util.List;
 public interface GroupRepository extends JpaRepository<Group, Long> {
 
     List<Group> findByCreatedBy(Long userId);
-
-    // TODO: Add custom queries for finding groups by member, search, etc.
 }
