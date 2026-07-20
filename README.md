@@ -1,10 +1,10 @@
 # Pulse
 
-> 🚧 Currently in active development — core messaging and auth are functional, remaining features in progress.
+> ✅ Feature-complete — core messaging, auth, and group invites are functional. Not under active development.
 
 A WhatsApp-style team collaboration app with real-time messaging, built with Angular, Spring Boot, WebSockets, and PostgreSQL.
 
-## Planned Architecture
+## Architecture
 ![Architecture diagram](docs/architecture.svg)
 
 ## Features
