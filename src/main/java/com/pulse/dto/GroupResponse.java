@@ -20,7 +20,4 @@ public class GroupResponse {
     private Long createdBy;
     private LocalDateTime createdAt;
     private Integer memberCount;
-
-    // TODO: Add method to convert Group entity to GroupResponse DTO
-    // TODO: Add list of members when implementing member details
 }

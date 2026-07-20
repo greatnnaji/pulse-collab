@@ -31,7 +31,7 @@ public class User {
     private String email;
 
     @Column(nullable = false)
-    private String password;  // TODO: This will be hashed via BCrypt in service layer
+    private String password;
 
     private String displayName;
 
@@ -52,7 +52,6 @@ public class User {
 
     private LocalDateTime lastSeenAt;
 
-    // TODO: Add relationships to GroupMember when implementing group functionality
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private Set<GroupMember> groupMemberships = new HashSet<>();
