@@ -3,6 +3,7 @@ package com.pulse.config;
 import com.pulse.config.websocket.WebSocketAuthChannelInterceptor;
 import com.pulse.config.websocket.WebSocketHandshakeInterceptor;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
@@ -18,10 +19,13 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     private final WebSocketAuthChannelInterceptor webSocketAuthChannelInterceptor;
     private final WebSocketHandshakeInterceptor webSocketHandshakeInterceptor;
 
+    @Value("${cors.allowed-origins:http://localhost:4200}")
+    private String allowedOrigins;
+
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("http://localhost:4200")
+                .setAllowedOriginPatterns(allowedOrigins.split(","))
                 .addInterceptors(webSocketHandshakeInterceptor);
     }
 
