@@ -1,6 +1,12 @@
 # Pulse
 A WhatsApp-style team collaboration app with real-time messaging, built with Angular, Spring Boot, WebSockets, and PostgreSQL.
 
+**Live app:** [pulse-collab-five.vercel.app](https://pulse-collab-five.vercel.app/auth/login)
+
+## Demo
+<!-- TODO: add YouTube walkthrough link -->
+[Watch the demo](#)
+
 ## Architecture
 ![Architecture diagram](docs/architecture.svg)
 
