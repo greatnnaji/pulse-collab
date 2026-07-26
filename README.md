@@ -4,8 +4,7 @@ A WhatsApp-style team collaboration app with real-time messaging, built with Ang
 **Live app:** [pulse-collab-five.vercel.app](https://pulse-collab-five.vercel.app/auth/login)
 
 ## Demo
-<!-- TODO: add YouTube walkthrough link -->
-[Watch the demo](#)
+[Watch the demo](https://youtu.be/Sy649vuoW7U)
 
 ## Architecture
 ![Architecture diagram](docs/architecture.svg)
