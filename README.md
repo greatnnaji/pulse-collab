@@ -6,6 +6,11 @@ A WhatsApp-style team collaboration app with real-time messaging, built with Ang
 ## Demo
 [Watch the demo](https://www.youtube.com/watch?v=gal_G-5lElU)
 
+## Screenshots
+![Group chat](docs/screenshots/pulse-collab-chat.png)
+
+![Dashboard and member list](docs/screenshots/pulse-collab-dashboard.png)
+
 ## Architecture
 ![Architecture diagram](docs/architecture.svg)
 
