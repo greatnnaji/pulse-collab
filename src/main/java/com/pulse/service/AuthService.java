@@ -5,9 +5,14 @@ import com.pulse.dto.LoginRequest;
 import com.pulse.dto.RegisterRequest;
 import com.pulse.dto.UserResponse;
 import com.pulse.entity.AuditLogEventType;
+import com.pulse.entity.GroupMember;
 import com.pulse.entity.User;
+import com.pulse.repository.GroupMemberRepository;
+import com.pulse.repository.GroupRepository;
 import com.pulse.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -16,6 +21,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -24,6 +30,12 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuditLogService auditLogService;
+    private final GroupRepository groupRepository;
+    private final GroupMemberRepository groupMemberRepository;
+
+    // Group every new user joins on sign-up, so the deployed demo isn't empty. Unset = off.
+    @Value("${demo.group-id:#{null}}")
+    private Long demoGroupId;
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -54,6 +66,7 @@ public class AuthService {
             savedUser.getUsername(),
             "User registered"
         );
+        joinDemoGroup(savedUser);
         String token = jwtService.generateToken(savedUser.getId(), savedUser.getUsername());
 
         return new AuthResponse(
@@ -106,6 +119,29 @@ public class AuthService {
                 user.getEmail(),
                 user.getDisplayName()
         );
+    }
+
+    private void joinDemoGroup(User user) {
+        if (demoGroupId == null) {
+            return;
+        }
+
+        groupRepository.findById(demoGroupId).ifPresentOrElse(group -> {
+            groupMemberRepository.save(GroupMember.builder()
+                    .group(group)
+                    .user(user)
+                    .role(GroupMember.MemberRole.MEMBER)
+                    .build());
+            auditLogService.record(
+                AuditLogEventType.GROUP_MEMBER_ADDED,
+                user.getId(),
+                user.getUsername(),
+                "GROUP",
+                group.getId(),
+                group.getName(),
+                "User auto-joined demo group on registration"
+            );
+        }, () -> log.warn("Demo group {} not found, skipping auto-join for user {}", demoGroupId, user.getId()));
     }
 
     public UserResponse getCurrentUser(Long userId) {
