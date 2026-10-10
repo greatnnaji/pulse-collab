@@ -25,9 +25,16 @@ A WhatsApp-style team collaboration app with real-time messaging, built with Ang
 |-------|-----------|
 | Frontend | Angular, TypeScript, SCSS |
 | Backend | Spring Boot, Java |
-| Database | PostgreSQL |
+| Database | PostgreSQL (Neon) |
 | Real-time | WebSockets |
 | DevOps | Docker Compose |
+
+## Deployment
+| Part | Hosted on |
+|------|-----------|
+| Frontend (Angular) | Vercel |
+| Backend (Spring Boot) | Render |
+| Database (PostgreSQL) | Neon |
 
 ## Run Locally
 ```bash
