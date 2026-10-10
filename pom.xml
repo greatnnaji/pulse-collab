@@ -121,4 +121,39 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!-- Lombok 1.18.30 breaks on JDK 22+. When Maven itself runs on a newer JDK,
+             compile/test/run with a JDK 21 toolchain instead (matches the Dockerfile).
+             Needs a JDK 21 entry in ~/.m2/toolchains.xml. -->
+        <profile>
+            <id>jdk21-toolchain</id>
+            <activation>
+                <jdk>[22,)</jdk>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-toolchains-plugin</artifactId>
+                        <version>3.2.0</version>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>toolchain</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <toolchains>
+                                <jdk>
+                                    <version>21</version>
+                                </jdk>
+                            </toolchains>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
