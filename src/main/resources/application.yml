@@ -40,3 +40,7 @@ jwt:
 
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:4200}
+
+# New users auto-join this group on registration (leave unset to disable)
+demo:
+  group-id: ${DEMO_GROUP_ID:}

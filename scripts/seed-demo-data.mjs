@@ -121,6 +121,7 @@ async function main() {
   for (const user of USERS) {
     console.log(`  ${user.username} / ${user.password}`);
   }
+  console.log(`\nset DEMO_GROUP_ID=${group.id} on the backend so new sign-ups join "${group.name}"`);
 }
 
 main().catch((err) => {
