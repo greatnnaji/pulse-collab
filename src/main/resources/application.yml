@@ -7,11 +7,18 @@ spring:
     username: ${POSTGRES_USER:pulseuser}
     password: ${POSTGRES_PASSWORD:pulsepass}
     driver-class-name: org.postgresql.Driver
+    # Neon (free plan) only scales to zero when nothing holds a connection open.
+    # Hikari's default keeps 10 idle connections forever, so an awake backend
+    # keeps the database awake too. Let the pool drain to zero when idle.
+    hikari:
+      minimum-idle: 0
+      maximum-pool-size: 5
+      idle-timeout: 60000  # close idle connections after 1 minute
 
   jpa:
     hibernate:
       ddl-auto: validate
-    show-sql: true
+    show-sql: ${JPA_SHOW_SQL:false}  # set JPA_SHOW_SQL=true locally to log queries
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
